@@ -5,6 +5,10 @@
   "permissions": [
     "core:default",
     "dialog:default",
-    "fs:default"
+    "fs:default",
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$HOME/**" }]
+    }
   ]
 }
