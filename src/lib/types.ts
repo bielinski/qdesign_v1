@@ -24,6 +24,11 @@ export interface ScaleConfig {
   pointLabels?: PointLabel[];
 }
 
+export interface BlockMeta {
+  name: string;
+  description?: string;
+}
+
 export interface Question {
   id: string;
   blockId: string;
@@ -39,6 +44,7 @@ export interface Question {
 export interface SerializedProject {
   version: number;
   questions: Omit<Question, 'id'>[];
+  blocks: Record<string, BlockMeta>;
 }
 
 export interface ValidationError {

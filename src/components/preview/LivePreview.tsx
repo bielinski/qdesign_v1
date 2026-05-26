@@ -1,8 +1,9 @@
-import type { Question } from '../../lib/types';
+import type { Question, BlockMeta } from '../../lib/types';
 import { NumericScaleVisual } from '../scale/NumericScaleVisual';
 
 interface LivePreviewProps {
   questions: Question[];
+  blocks: Record<string, BlockMeta>;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -14,7 +15,7 @@ const TYPE_LABELS: Record<string, string> = {
   graphic_scale: 'Skala graficzna',
 };
 
-export function LivePreview({ questions }: LivePreviewProps) {
+export function LivePreview({ questions, blocks }: LivePreviewProps) {
   const groups = groupByBlock(questions);
 
   if (questions.length === 0) {
@@ -33,10 +34,12 @@ export function LivePreview({ questions }: LivePreviewProps) {
           <p className="text-[10px] text-gray-400">Widok respondenta</p>
         </div>
 
-        {groups.map(({ blockId, questions: blockQs }) => (
+        {groups.map(({ blockId, questions: blockQs }) => {
+          const blockMeta = blocks[blockId];
+          return (
           <div key={blockId}>
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-              Blok {blockId}
+              Blok {blockId}{blockMeta?.name ? `: ${blockMeta.name}` : ''}
             </h3>
 
             <div className="space-y-4">
@@ -129,7 +132,8 @@ export function LivePreview({ questions }: LivePreviewProps) {
               ))}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

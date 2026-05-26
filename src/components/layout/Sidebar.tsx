@@ -1,24 +1,28 @@
-import type { Question } from '../../lib/types';
+import type { Question, BlockMeta } from '../../lib/types';
 import { BlockNavigator } from '../navigator/BlockNavigator';
 
 interface SidebarProps {
   questions: Question[];
+  blocks: Record<string, BlockMeta>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onAddBlock: () => void;
   onAddQuestion: (blockId: string) => void;
   onDeleteQuestion: (id: string) => void;
   onMoveQuestion: (id: string, targetBlockId: string, targetIndex: number) => void;
+  onUpdateBlockMeta: (blockId: string, meta: BlockMeta) => void;
 }
 
 export function Sidebar({
   questions,
+  blocks,
   selectedId,
   onSelect,
   onAddBlock,
   onAddQuestion,
   onDeleteQuestion,
   onMoveQuestion,
+  onUpdateBlockMeta,
 }: SidebarProps) {
   return (
     <aside className="w-72 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
@@ -31,11 +35,13 @@ export function Sidebar({
       <div className="flex-1 overflow-y-auto px-2 py-3 space-y-2">
         <BlockNavigator
           questions={questions}
+          blocks={blocks}
           selectedId={selectedId}
           onSelect={onSelect}
           onAddQuestion={onAddQuestion}
           onDeleteQuestion={onDeleteQuestion}
           onMoveQuestion={onMoveQuestion}
+          onUpdateBlockMeta={onUpdateBlockMeta}
         />
       </div>
 

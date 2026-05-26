@@ -1,5 +1,5 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
-import type { Question, QuestionType, ValidationError, SerializedProject } from './types';
+import type { Question, QuestionType, ValidationError, SerializedProject, BlockMeta } from './types';
 
 const POINT_RANGES: Record<QuestionType, { min: number; max: number } | null> = {
   open: null,
@@ -22,8 +22,10 @@ function blockIndexToPrefix(index: number): string {
 
 export class SurveyEngine {
   private questions: Question[];
+  private _blocks: Record<string, BlockMeta>;
 
-  constructor(questions: Question[] = []) {
+  constructor(questions: Question[] = [], blocks: Record<string, BlockMeta> = {}) {
+    this._blocks = { ...blocks };
     this.questions = questions.map(q => ({ ...q }));
     this.renumber();
   }
@@ -32,8 +34,23 @@ export class SurveyEngine {
     return this.questions.map(q => ({ ...q }));
   }
 
+  getBlocks(): Record<string, BlockMeta> {
+    return { ...this._blocks };
+  }
+
+  getBlockMeta(blockId: string): BlockMeta {
+    return this._blocks[blockId] ?? { name: '' };
+  }
+
+  setBlockMeta(blockId: string, meta: BlockMeta): void {
+    this._blocks[blockId] = { ...meta };
+  }
+
   add(question: Omit<Question, 'id'>): string {
     this.questions.push({ ...question, id: '' });
+    if (!this._blocks[question.blockId]) {
+      this._blocks[question.blockId] = { name: '' };
+    }
     this.renumber();
     for (let i = this.questions.length - 1; i >= 0; i--) {
       if (this.questions[i].blockId === question.blockId) {
@@ -53,7 +70,11 @@ export class SurveyEngine {
   }
 
   delete(id: string): void {
+    const removed = this.questions.find(q => q.id === id);
     this.questions = this.questions.filter(q => q.id !== id);
+    if (removed && !this.questions.some(q => q.blockId === removed.blockId)) {
+      delete this._blocks[removed.blockId];
+    }
     this.renumber();
   }
 
@@ -190,11 +211,13 @@ export class SurveyEngine {
     return {
       version: 1,
       questions: this.questions.map(({ id: _id, ...rest }) => rest),
+      blocks: { ...this._blocks },
     };
   }
 
   loadFromData(data: SerializedProject): void {
     this.questions = data.questions.map(q => ({ ...q, id: '' }));
+    this._blocks = data.blocks ? { ...data.blocks } : {};
     this.renumber();
   }
 
@@ -222,12 +245,27 @@ export class SurveyEngine {
     for (const blockId of order) {
       const blockQuestions = groups.get(blockId)!;
 
+      const blockMeta = this._blocks[blockId];
+      const blockHeading = blockMeta?.name
+        ? `Block ${blockId}: ${blockMeta.name}`
+        : `Block ${blockId}`;
+
       children.push(
         new Paragraph({
-          text: `Block ${blockId}`,
+          text: blockHeading,
           heading: HeadingLevel.HEADING_2,
         }),
       );
+
+      if (blockMeta?.description) {
+        children.push(
+          new Paragraph({
+            indent: { left: 200 },
+            spacing: { after: 200 },
+            children: [new TextRun({ text: blockMeta.description, italics: true, size: 18 })],
+          }),
+        );
+      }
 
       for (const q of blockQuestions) {
         const typeLabel = q.type.replace(/_/g, ' ');

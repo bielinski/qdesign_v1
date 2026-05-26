@@ -27,6 +27,7 @@ export default function App() {
   const {
     questions,
     errors,
+    blocks,
     addQuestion,
     updateQuestion,
     deleteQuestion,
@@ -34,6 +35,7 @@ export default function App() {
     exportDocx,
     saveProject,
     loadProject,
+    updateBlockMeta,
   } = useSurveyEngine();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -169,12 +171,14 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
           questions={questions}
+          blocks={blocks}
           selectedId={selectedId}
           onSelect={handleSelect}
           onAddBlock={handleAddBlock}
           onAddQuestion={handleAddQuestion}
           onDeleteQuestion={handleDeleteQuestion}
           onMoveQuestion={handleMoveQuestion}
+          onUpdateBlockMeta={updateBlockMeta}
         />
 
         <MainContent>
@@ -195,7 +199,7 @@ export default function App() {
             {showLivePreview && (
               <>
                 <div className="w-px bg-gray-200 shrink-0" />
-                <LivePreview questions={questions} />
+                <LivePreview questions={questions} blocks={blocks} />
               </>
             )}
           </div>

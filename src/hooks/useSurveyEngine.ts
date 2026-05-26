@@ -1,14 +1,16 @@
 import { useState, useCallback } from 'react';
 import { SurveyEngine } from '../lib/SurveyEngine';
-import type { Question, SerializedProject } from '../lib/types';
+import type { Question, SerializedProject, BlockMeta } from '../lib/types';
 
 export function useSurveyEngine() {
   const [engine] = useState(() => new SurveyEngine());
   const [questions, setQuestions] = useState(() => engine.getQuestions());
   const [errors, setErrors] = useState(() => engine.validate());
+  const [blocks, setBlocks] = useState(() => engine.getBlocks());
   const sync = useCallback(() => {
     setQuestions(engine.getQuestions());
     setErrors(engine.validate());
+    setBlocks(engine.getBlocks());
   }, [engine]);
 
   const addQuestion = useCallback(
@@ -68,9 +70,18 @@ export function useSurveyEngine() {
     [engine, sync],
   );
 
+  const updateBlockMeta = useCallback(
+    (blockId: string, meta: BlockMeta): void => {
+      engine.setBlockMeta(blockId, meta);
+      sync();
+    },
+    [engine, sync],
+  );
+
   return {
     questions,
     errors,
+    blocks,
     addQuestion,
     insertAfter,
     updateQuestion,
@@ -79,5 +90,6 @@ export function useSurveyEngine() {
     exportDocx,
     saveProject,
     loadProject,
+    updateBlockMeta,
   };
 }
