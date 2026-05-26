@@ -124,6 +124,8 @@ export class SurveyEngine {
   }
 
   renumber(): void {
+    const oldToNew = new Map<string, string>();
+
     const groups = new Map<string, Question[]>();
     const order: string[] = [];
 
@@ -143,14 +145,49 @@ export class SurveyEngine {
       const prefix = blockIndexToPrefix(bi);
 
       for (let qi = 0; qi < blockQuestions.length; qi++) {
+        const oldId = blockQuestions[qi].id;
+        const newId = `${prefix}.${qi + 1}`;
+        if (oldId) oldToNew.set(oldId, newId);
         renumbered.push({
           ...blockQuestions[qi],
-          id: `${prefix}.${qi + 1}`,
+          id: newId,
         });
       }
     }
 
+    for (const q of renumbered) {
+      if (q.next && oldToNew.has(q.next)) {
+        q.next = oldToNew.get(q.next);
+      }
+    }
+
     this.questions = renumbered;
+  }
+
+  reorderBlock(sourceBlockIndex: number, targetBlockIndex: number): void {
+    const groups = new Map<string, Question[]>();
+    const order: string[] = [];
+
+    for (const q of this.questions) {
+      if (!groups.has(q.blockId)) {
+        groups.set(q.blockId, []);
+        order.push(q.blockId);
+      }
+      groups.get(q.blockId)!.push(q);
+    }
+
+    if (sourceBlockIndex < 0 || sourceBlockIndex >= order.length) return;
+    if (targetBlockIndex < 0 || targetBlockIndex >= order.length) return;
+
+    const [moved] = order.splice(sourceBlockIndex, 1);
+    order.splice(targetBlockIndex, 0, moved);
+
+    this.questions = [];
+    for (const blockId of order) {
+      this.questions.push(...groups.get(blockId)!);
+    }
+
+    this.renumber();
   }
 
   validate(): ValidationError[] {

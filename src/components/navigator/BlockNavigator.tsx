@@ -1,3 +1,4 @@
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import type { Question, BlockMeta } from '../../lib/types';
 import { BlockSection } from './BlockSection';
 
@@ -8,7 +9,6 @@ interface BlockNavigatorProps {
   onSelect: (id: string) => void;
   onAddQuestion: (blockId: string) => void;
   onDeleteQuestion: (id: string) => void;
-  onMoveQuestion: (id: string, targetBlockId: string, targetIndex: number) => void;
   onUpdateBlockMeta: (blockId: string, meta: BlockMeta) => void;
 }
 
@@ -19,7 +19,6 @@ export function BlockNavigator({
   onSelect,
   onAddQuestion,
   onDeleteQuestion,
-  onMoveQuestion,
   onUpdateBlockMeta,
 }: BlockNavigatorProps) {
   const groups = groupByBlock(questions);
@@ -32,23 +31,26 @@ export function BlockNavigator({
     );
   }
 
+  const blockIds = groups.map(g => g.blockId);
+
   return (
-    <>
-      {groups.map(({ blockId, questions: blockQs }) => (
-        <BlockSection
-          key={blockId}
-          blockId={blockId}
-          blockMeta={blocks[blockId] ?? { name: '' }}
-          questions={blockQs}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onAddQuestion={onAddQuestion}
-          onDeleteQuestion={onDeleteQuestion}
-          onMoveQuestion={onMoveQuestion}
-          onUpdateBlockMeta={onUpdateBlockMeta}
-        />
-      ))}
-    </>
+    <SortableContext items={blockIds} strategy={verticalListSortingStrategy}>
+      <div className="space-y-2">
+        {groups.map(({ blockId, questions: blockQs }) => (
+          <BlockSection
+            key={blockId}
+            blockId={blockId}
+            blockMeta={blocks[blockId] ?? { name: '' }}
+            questions={blockQs}
+            selectedId={selectedId}
+            onSelect={onSelect}
+            onAddQuestion={onAddQuestion}
+            onDeleteQuestion={onDeleteQuestion}
+            onUpdateBlockMeta={onUpdateBlockMeta}
+          />
+        ))}
+      </div>
+    </SortableContext>
   );
 }
 

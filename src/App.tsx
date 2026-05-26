@@ -36,6 +36,7 @@ export default function App() {
     saveProject,
     loadProject,
     updateBlockMeta,
+    reorderBlock,
   } = useSurveyEngine();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -157,6 +158,10 @@ export default function App() {
     moveQuestion(id, targetBlockId, targetIndex);
   }, [moveQuestion]);
 
+  const handleReorderBlock = useCallback((sourceIndex: number, targetIndex: number) => {
+    reorderBlock(sourceIndex, targetIndex);
+  }, [reorderBlock]);
+
   return (
     <div className="h-screen flex flex-col">
       <Toolbar
@@ -179,6 +184,7 @@ export default function App() {
           onDeleteQuestion={handleDeleteQuestion}
           onMoveQuestion={handleMoveQuestion}
           onUpdateBlockMeta={updateBlockMeta}
+          onReorderBlock={handleReorderBlock}
         />
 
         <MainContent>

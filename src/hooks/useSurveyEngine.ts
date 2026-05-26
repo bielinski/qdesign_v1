@@ -78,6 +78,14 @@ export function useSurveyEngine() {
     [engine, sync],
   );
 
+  const reorderBlock = useCallback(
+    (sourceIndex: number, targetIndex: number): void => {
+      engine.reorderBlock(sourceIndex, targetIndex);
+      sync();
+    },
+    [engine, sync],
+  );
+
   return {
     questions,
     errors,
@@ -91,5 +99,6 @@ export function useSurveyEngine() {
     saveProject,
     loadProject,
     updateBlockMeta,
+    reorderBlock,
   };
 }
