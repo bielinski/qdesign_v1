@@ -1,5 +1,6 @@
 import type { Question, BlockMeta } from '../../lib/types';
 import { NumericScaleVisual } from '../scale/NumericScaleVisual';
+import { getIncomingRoutesText } from '../../lib/SurveyEngine';
 
 interface LivePreviewProps {
   questions: Question[];
@@ -48,7 +49,7 @@ export function LivePreview({ questions, blocks }: LivePreviewProps) {
                 return (
                 <div key={q.id} className="border-l-2 border-gray-200 pl-3">
                   {(() => {
-                    const incoming = getIncomingRoutes(questions, q.id);
+                    const incoming = getIncomingRoutesText(questions, q.id);
                     if (!incoming) return null;
                     return (
                       <p className="text-[10px] text-blue-600 mb-1.5 leading-relaxed">
@@ -177,58 +178,6 @@ export function LivePreview({ questions, blocks }: LivePreviewProps) {
       </div>
     </div>
   );
-}
-
-function getDisplayValue(source: Question, optionIndex: number): number {
-  if (source.type === 'numeric_scale') return optionIndex;
-  return optionIndex + 1;
-}
-
-function formatValues(vals: number[]): string {
-  if (vals.length === 0) return '';
-  if (vals.length === 1) return String(vals[0]);
-  const head = vals.slice(0, -1).join(', ');
-  return `${head} lub ${vals[vals.length - 1]}`;
-}
-
-function getIncomingRoutes(allQuestions: Question[], targetId: string): string | null {
-  const bySource = new Map<string, { unconditional: boolean; values: number[] }>();
-
-  for (const source of allQuestions) {
-    if (source.id === targetId) continue;
-
-    if (source.next === targetId) {
-      const entry = bySource.get(source.id) ?? { unconditional: false, values: [] };
-      entry.unconditional = true;
-      bySource.set(source.id, entry);
-    }
-
-    if (source.optionRouting) {
-      for (const [key, val] of Object.entries(source.optionRouting)) {
-        if (val === targetId) {
-          const entry = bySource.get(source.id) ?? { unconditional: false, values: [] };
-          entry.values.push(getDisplayValue(source, Number(key)));
-          bySource.set(source.id, entry);
-        }
-      }
-    }
-  }
-
-  if (bySource.size === 0) return null;
-
-  const parts: string[] = [];
-  for (const [sourceId, entry] of bySource) {
-    const sorted = entry.values.sort((a, b) => a - b);
-    if (entry.unconditional && sorted.length === 0) {
-      parts.push(`Zadaj pyt. ${targetId} po ${sourceId}`);
-    } else if (entry.unconditional && sorted.length > 0) {
-      parts.push(`Zadaj pyt. ${targetId} po ${sourceId} (lub jeśli == ${formatValues(sorted)})`);
-    } else {
-      parts.push(`Zadaj pyt. ${targetId} jeśli w ${sourceId} == ${formatValues(sorted)}`);
-    }
-  }
-
-  return parts.join('; ');
 }
 
 function groupByBlock(questions: Question[]): { blockId: string; questions: Question[] }[] {

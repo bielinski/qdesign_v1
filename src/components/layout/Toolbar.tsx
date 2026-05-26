@@ -43,7 +43,7 @@ export function Toolbar({
         <button
           type="button"
           onClick={onExportDocx}
-          disabled={questionCount === 0 || errorCount > 0}
+          disabled={questionCount === 0}
           className="btn-primary text-xs"
         >
           Eksportuj DOCX

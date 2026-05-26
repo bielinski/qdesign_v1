@@ -115,15 +115,26 @@ export default function App() {
   const handleExportDocx = useCallback(async () => {
     try {
       const buffer = await exportDocx();
-      const blob = new Blob([buffer as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'questionnaire.docx';
-      a.click();
-      URL.revokeObjectURL(url);
+      if (typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window) {
+        const { save } = await import('@tauri-apps/plugin-dialog');
+        const { writeFile } = await import('@tauri-apps/plugin-fs');
+        const filePath = await save({
+          filters: [{ name: 'Dokument DOCX', extensions: ['docx'] }],
+          defaultPath: 'questionnaire.docx',
+        });
+        if (!filePath) return;
+        await writeFile(filePath, buffer);
+      } else {
+        const blob = new Blob([buffer as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'questionnaire.docx';
+        a.click();
+        URL.revokeObjectURL(url);
+      }
     } catch (err) {
-      console.error('Export failed:', err);
+      alert('Błąd eksportu: ' + (err instanceof Error ? err.message : String(err)));
     }
   }, [exportDocx]);
 
