@@ -1,11 +1,20 @@
 interface ToolbarProps {
   onExportDocx: () => void;
   onNewProject: () => void;
+  onSaveProject: () => void;
+  onOpenProject: () => void;
   questionCount: number;
   errorCount: number;
 }
 
-export function Toolbar({ onExportDocx, onNewProject, questionCount, errorCount }: ToolbarProps) {
+export function Toolbar({
+  onExportDocx,
+  onNewProject,
+  onSaveProject,
+  onOpenProject,
+  questionCount,
+  errorCount,
+}: ToolbarProps) {
   return (
     <header className="h-12 shrink-0 border-b border-gray-200 bg-white flex items-center justify-between px-4">
       <div className="flex items-center gap-3">
@@ -22,6 +31,12 @@ export function Toolbar({ onExportDocx, onNewProject, questionCount, errorCount 
       </div>
 
       <div className="flex items-center gap-2">
+        <button type="button" onClick={onOpenProject} className="btn-secondary text-xs">
+          Otwórz projekt
+        </button>
+        <button type="button" onClick={onSaveProject} className="btn-secondary text-xs">
+          Zapisz projekt
+        </button>
         <button type="button" onClick={onNewProject} className="btn-secondary text-xs">
           Nowy projekt
         </button>

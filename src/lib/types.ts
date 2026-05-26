@@ -36,6 +36,11 @@ export interface Question {
   nonSubstantiveOption?: string;
 }
 
+export interface SerializedProject {
+  version: number;
+  questions: Omit<Question, 'id'>[];
+}
+
 export interface ValidationError {
   questionId: string;
   field: string;

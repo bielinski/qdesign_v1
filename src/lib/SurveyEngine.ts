@@ -1,5 +1,5 @@
 import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
-import type { Question, QuestionType, ValidationError } from './types';
+import type { Question, QuestionType, ValidationError, SerializedProject } from './types';
 
 const POINT_RANGES: Record<QuestionType, { min: number; max: number } | null> = {
   open: null,
@@ -184,6 +184,18 @@ export class SurveyEngine {
     }
 
     return errors;
+  }
+
+  serialize(): SerializedProject {
+    return {
+      version: 1,
+      questions: this.questions.map(({ id: _id, ...rest }) => rest),
+    };
+  }
+
+  loadFromData(data: SerializedProject): void {
+    this.questions = data.questions.map(q => ({ ...q, id: '' }));
+    this.renumber();
   }
 
   async exportToDocx(): Promise<Uint8Array> {

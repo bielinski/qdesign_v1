@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { SurveyEngine } from '../lib/SurveyEngine';
-import type { Question } from '../lib/types';
+import type { Question, SerializedProject } from '../lib/types';
 
 export function useSurveyEngine() {
   const [engine] = useState(() => new SurveyEngine());
@@ -56,6 +56,18 @@ export function useSurveyEngine() {
     return engine.exportToDocx();
   }, [engine]);
 
+  const saveProject = useCallback((): SerializedProject => {
+    return engine.serialize();
+  }, [engine]);
+
+  const loadProject = useCallback(
+    (data: SerializedProject): void => {
+      engine.loadFromData(data);
+      sync();
+    },
+    [engine, sync],
+  );
+
   return {
     questions,
     errors,
@@ -65,5 +77,7 @@ export function useSurveyEngine() {
     deleteQuestion,
     moveQuestion,
     exportDocx,
+    saveProject,
+    loadProject,
   };
 }

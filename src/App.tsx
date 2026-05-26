@@ -6,12 +6,21 @@ import { MainContent } from './components/layout/MainContent';
 import { Toolbar } from './components/layout/Toolbar';
 import { QuestionEditor } from './components/editor/QuestionEditor';
 import { LivePreview } from './components/preview/LivePreview';
+import { saveProjectFile, openProjectFile } from './lib/projectIO';
 let nextBlockId = 1;
 
 function generateBlockId(): string {
   const id = nextBlockId;
   nextBlockId++;
   return String.fromCharCode(64 + (id <= 26 ? id : ((id - 1) % 26) + 1));
+}
+
+function blockCharIndex(blockId: string): number {
+  let index = 0;
+  for (let i = 0; i < blockId.length; i++) {
+    index = index * 26 + (blockId.charCodeAt(i) - 64);
+  }
+  return index;
 }
 
 export default function App() {
@@ -23,6 +32,8 @@ export default function App() {
     deleteQuestion,
     moveQuestion,
     exportDocx,
+    saveProject,
+    loadProject,
   } = useSurveyEngine();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -115,6 +126,31 @@ export default function App() {
     window.location.reload();
   }, [questions]);
 
+  const handleSaveProject = useCallback(async () => {
+    try {
+      const data = saveProject();
+      await saveProjectFile(data);
+    } catch (err) {
+      alert('Błąd zapisu: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [saveProject]);
+
+  const handleOpenProject = useCallback(async () => {
+    try {
+      const data = await openProjectFile();
+      if (!data) return;
+      loadProject(data);
+      const maxBlock = data.questions.reduce(
+        (max: number, q: { blockId: string }) => Math.max(max, blockCharIndex(q.blockId)),
+        0,
+      );
+      nextBlockId = maxBlock + 1;
+      setSelectedId(null);
+    } catch (err) {
+      alert('Błąd odczytu: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [loadProject]);
+
   const handleMoveQuestion = useCallback((id: string, targetBlockId: string, targetIndex: number) => {
     moveQuestion(id, targetBlockId, targetIndex);
   }, [moveQuestion]);
@@ -124,6 +160,8 @@ export default function App() {
       <Toolbar
         onExportDocx={handleExportDocx}
         onNewProject={handleNewProject}
+        onSaveProject={handleSaveProject}
+        onOpenProject={handleOpenProject}
         questionCount={questions.length}
         errorCount={errors.length}
       />
