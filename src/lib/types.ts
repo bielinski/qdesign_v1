@@ -39,6 +39,7 @@ export interface Question {
   next?: string;
   options?: string[];
   nonSubstantiveOption?: string;
+  optionRouting?: Record<number, string>;
 }
 
 export interface SerializedProject {

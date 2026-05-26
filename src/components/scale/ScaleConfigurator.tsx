@@ -10,9 +10,12 @@ interface ScaleConfiguratorProps {
   scaleConfig?: ScaleConfig;
   fieldErrors: FormFieldErrors;
   onUpdate: (updates: Partial<ScaleConfig>) => void;
+  optionRouting: Record<number, string>;
+  targetOptions: { id: string; label: string }[];
+  onRoutingChange: (routing: Record<number, string>) => void;
 }
 
-export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate }: ScaleConfiguratorProps) {
+export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate, optionRouting, targetOptions, onRoutingChange }: ScaleConfiguratorProps) {
   if (!scaleConfig) {
     if (type === 'semantic_scale' || type === 'numeric_scale' || type === 'graphic_scale') {
       return (
@@ -44,6 +47,40 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate }: 
     }
   };
 
+  const routingSection = (routableIndices: number[]) => (
+    <div>
+      <label className="label">Reguły przejścia dla odpowiedzi</label>
+      <div className="space-y-1 max-h-48 overflow-y-auto">
+        {routableIndices.map(idx => (
+          <div key={idx} className="flex items-center gap-2 text-xs py-0.5">
+            <span className="font-mono text-gray-400 w-6 text-right shrink-0">
+              {type === 'numeric_scale' ? idx : idx + 1}.
+            </span>
+            <span className="flex-1 truncate text-gray-500">
+              {labelForIndex(type, scaleConfig, idx)}
+            </span>
+            <select
+              value={optionRouting[idx] ?? ''}
+              onChange={e => {
+                const updated = { ...optionRouting };
+                if (e.target.value) updated[idx] = e.target.value;
+                else delete updated[idx];
+                onRoutingChange(updated);
+              }}
+              className="input text-[10px] py-1 w-40 shrink-0"
+            >
+              <option value="">→ (domyślny)</option>
+              {targetOptions.map(t => (
+                <option key={t.id} value={t.id}>{t.id}: {t.label}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </div>
+      {fieldErrors.optionRouting && <p className="error-text">{fieldErrors.optionRouting}</p>}
+    </div>
+  );
+
   return (
     <div className="card p-4 space-y-4">
       <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
@@ -72,6 +109,7 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate }: 
             onChange={v => onUpdate({ points: v })}
             error={fieldErrors.scalePoints}
           />
+          {routingSection(Array.from({ length: scaleConfig.points + 1 }, (_, i) => i))}
         </>
       )}
 
@@ -91,6 +129,7 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate }: 
             onChange={v => onUpdate({ points: v })}
             error={fieldErrors.scalePoints}
           />
+          {routingSection(Array.from({ length: scaleConfig.points }, (_, i) => i))}
         </>
       )}
 
@@ -111,8 +150,20 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate }: 
             onChange={v => onUpdate({ points: v })}
             error={fieldErrors.scalePoints}
           />
+          {routingSection(Array.from({ length: scaleConfig.points }, (_, i) => i))}
         </>
       )}
     </div>
   );
+}
+
+function labelForIndex(type: QuestionType, config: ScaleConfig, idx: number): string {
+  if (type === 'numeric_scale') {
+    return `Wartość ${idx}`;
+  }
+  if (type === 'semantic_scale') {
+    const label = config.pointLabels?.find(pl => pl.index === idx + 1)?.label;
+    return label ? `Punkt ${idx + 1}: ${label}` : `Punkt ${idx + 1}`;
+  }
+  return `Punkt ${idx + 1}`;
 }

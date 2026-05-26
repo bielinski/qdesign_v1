@@ -87,12 +87,12 @@ export default function App() {
 
   const handleSave = useCallback(() => {
     if (!selectedId) return;
-    const { text, type, required, blockId, next, scaleConfig, options, nonSubstantiveOption } = form.draft;
+    const { text, type, required, blockId, next, scaleConfig, options, nonSubstantiveOption, optionRouting } = form.draft;
     if (!text.trim()) {
       alert('Treść pytania nie może być pusta.');
       return;
     }
-    updateQuestion(selectedId, { text, type, required, blockId, next, scaleConfig, options, nonSubstantiveOption });
+    updateQuestion(selectedId, { text, type, required, blockId, next, scaleConfig, options, nonSubstantiveOption, optionRouting });
   }, [selectedId, form.draft, updateQuestion]);
 
   const handleCancel = useCallback(() => {
@@ -106,6 +106,9 @@ export default function App() {
         ? { ...selectedQuestion.scaleConfig }
         : undefined,
       nonSubstantiveOption: selectedQuestion?.nonSubstantiveOption,
+      optionRouting: selectedQuestion?.optionRouting
+        ? { ...selectedQuestion.optionRouting }
+        : undefined,
     });
   }, [selectedQuestion, form]);
 

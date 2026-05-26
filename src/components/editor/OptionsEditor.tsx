@@ -2,11 +2,14 @@ import { useRef, useEffect } from 'react';
 
 interface OptionsEditorProps {
   options: string[];
+  optionRouting: Record<number, string>;
+  targetOptions: { id: string; label: string }[];
   onChange: (options: string[]) => void;
+  onRoutingChange: (routing: Record<number, string>) => void;
   error?: string;
 }
 
-export function OptionsEditor({ options, onChange, error }: OptionsEditorProps) {
+export function OptionsEditor({ options, optionRouting, targetOptions, onChange, onRoutingChange, error }: OptionsEditorProps) {
   const lastInputRef = useRef<HTMLInputElement>(null);
 
   const addOption = () => onChange([...options, '']);
@@ -17,11 +20,26 @@ export function OptionsEditor({ options, onChange, error }: OptionsEditorProps) 
 
   const removeOption = (index: number) => {
     if (options.length <= 2) return;
+    const newRouting = { ...optionRouting };
+    delete newRouting[index];
+    const shifted: Record<number, string> = {};
+    for (const [k, v] of Object.entries(newRouting)) {
+      const ki = Number(k);
+      shifted[ki > index ? ki - 1 : ki] = v;
+    }
+    onRoutingChange(shifted);
     onChange(options.filter((_, i) => i !== index));
   };
 
   const updateOption = (index: number, value: string) => {
     onChange(options.map((opt, i) => (i === index ? value : opt)));
+  };
+
+  const updateRouting = (index: number, targetId: string) => {
+    const updated = { ...optionRouting };
+    if (targetId) updated[index] = targetId;
+    else delete updated[index];
+    onRoutingChange(updated);
   };
 
   return (
@@ -41,6 +59,19 @@ export function OptionsEditor({ options, onChange, error }: OptionsEditorProps) 
               className="input flex-1"
               placeholder={`Opcja ${i + 1}...`}
             />
+            <select
+              value={optionRouting[i] ?? ''}
+              onChange={e => updateRouting(i, e.target.value)}
+              className="input w-36 text-[10px] py-1.5 shrink-0"
+              title="Pytanie docelowe dla tej opcji"
+            >
+              <option value="">→ (domyślny)</option>
+              {targetOptions.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.id}: {t.label}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => removeOption(i)}

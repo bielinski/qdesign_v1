@@ -10,6 +10,24 @@ const POINT_RANGES: Record<QuestionType, { min: number; max: number } | null> = 
   graphic_scale: { min: 5, max: 11 },
 };
 
+function isRoutableType(type: QuestionType): boolean {
+  return type === 'single_choice' || type === 'multiple_choice'
+    || type === 'semantic_scale' || type === 'numeric_scale' || type === 'graphic_scale';
+}
+
+function getRoutableIndices(q: Question): number[] {
+  if (q.type === 'single_choice' || q.type === 'multiple_choice') {
+    return (q.options ?? []).map((_, i) => i);
+  }
+  if (q.type === 'semantic_scale' || q.type === 'graphic_scale') {
+    return Array.from({ length: q.scaleConfig?.points ?? 0 }, (_, i) => i);
+  }
+  if (q.type === 'numeric_scale') {
+    return Array.from({ length: (q.scaleConfig?.points ?? 0) + 1 }, (_, i) => i);
+  }
+  return [];
+}
+
 function blockIndexToPrefix(index: number): string {
   let prefix = '';
   let i = index;
@@ -85,6 +103,9 @@ export class SurveyEngine {
     if (updates.type && !['single_choice', 'multiple_choice'].includes(updates.type)) {
       updates.options = undefined;
     }
+    if (updates.type && !isRoutableType(updates.type)) {
+      updates.optionRouting = undefined;
+    }
     const index = this.questions.findIndex(q => q.id === id);
     if (index === -1) {
       throw new Error(`Question with id "${id}" not found`);
@@ -158,6 +179,13 @@ export class SurveyEngine {
     for (const q of renumbered) {
       if (q.next && oldToNew.has(q.next)) {
         q.next = oldToNew.get(q.next);
+      }
+      if (q.optionRouting) {
+        for (const [key, targetId] of Object.entries(q.optionRouting)) {
+          if (oldToNew.has(targetId)) {
+            q.optionRouting[Number(key)] = oldToNew.get(targetId)!;
+          }
+        }
       }
     }
 
@@ -238,6 +266,27 @@ export class SurveyEngine {
           field: 'next',
           message: `${q.id}: next references non-existent question ${q.next}`,
         });
+      }
+
+      if (q.optionRouting) {
+        const validIndices = new Set(getRoutableIndices(q));
+        for (const [key, targetId] of Object.entries(q.optionRouting)) {
+          const idx = Number(key);
+          if (!validIndices.has(idx)) {
+            errors.push({
+              questionId: q.id,
+              field: 'optionRouting',
+              message: `${q.id}: optionRouting index ${idx} is out of range`,
+            });
+          }
+          if (!allIds.has(targetId)) {
+            errors.push({
+              questionId: q.id,
+              field: 'optionRouting',
+              message: `${q.id}: optionRouting references non-existent question ${targetId}`,
+            });
+          }
+        }
       }
     }
 
@@ -350,16 +399,32 @@ export class SurveyEngine {
         }
 
         if (q.options && q.options.length > 0) {
+          const optionsText = q.options.map((o, i) => {
+            const route = q.optionRouting?.[i] ? ` \u2192 ${q.optionRouting[i]}` : '';
+            return `${i + 1}. ${o}${route}`;
+          }).join(' | ');
           children.push(
             new Paragraph({
               indent: { left: 400 },
               children: [
-                new TextRun({
-                  text: `Options: ${q.options.map((o, i) => `${i + 1}. ${o}`).join(' | ')}`,
-                  italics: true,
-                  size: 18,
-                }),
+                new TextRun({ text: `Options: ${optionsText}`, italics: true, size: 18 }),
               ],
+            }),
+          );
+        }
+
+        if (q.scaleConfig && q.optionRouting && Object.keys(q.optionRouting).length > 0) {
+          const routingText = getRoutableIndices(q)
+            .map(i => {
+              const label = q.type === 'numeric_scale' ? String(i) : `${i + 1}`;
+              const target = q.optionRouting![i] ? ` \u2192 ${q.optionRouting![i]}` : '';
+              return `${label}${target}`;
+            })
+            .join(', ');
+          children.push(
+            new Paragraph({
+              indent: { left: 400 },
+              children: [new TextRun({ text: `Routing: ${routingText}`, size: 18, italics: true })],
             }),
           );
         }

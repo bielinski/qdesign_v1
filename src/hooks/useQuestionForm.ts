@@ -11,6 +11,7 @@ export interface FormState {
   scaleConfig?: ScaleConfig;
   options?: string[];
   nonSubstantiveOption?: string;
+  optionRouting?: Record<number, string>;
 }
 
 export interface FormFieldErrors {
@@ -22,6 +23,7 @@ export interface FormFieldErrors {
   pointLabels?: string;
   next?: string;
   options?: string;
+  optionRouting?: string;
 }
 
 export function useQuestionForm(question: Question | null) {
@@ -38,13 +40,16 @@ export function useQuestionForm(question: Question | null) {
     if (field === 'type') {
       const newType = value as QuestionType;
       const isChoice = newType === 'single_choice' || newType === 'multiple_choice';
-      const noScale = newType !== 'semantic_scale' && newType !== 'numeric_scale' && newType !== 'graphic_scale';
+      const isScale = newType === 'semantic_scale' || newType === 'numeric_scale' || newType === 'graphic_scale';
+      const isRoutable = isChoice || isScale;
       setDraft(prev => {
         const next = { ...prev, type: newType };
-        if (noScale) next.scaleConfig = undefined;
-        if (!noScale && !next.scaleConfig) next.scaleConfig = defaultScaleConfig(newType);
+        if (!isScale) next.scaleConfig = undefined;
+        if (isScale && !next.scaleConfig) next.scaleConfig = defaultScaleConfig(newType);
         if (isChoice) next.options = prev.options ?? ['', ''];
         if (!isChoice) next.options = undefined;
+        if (isRoutable) next.optionRouting = prev.optionRouting ?? {};
+        if (!isRoutable) next.optionRouting = undefined;
         return next;
       });
     } else {
@@ -68,6 +73,11 @@ export function useQuestionForm(question: Question | null) {
   return { draft, setDraft, fieldErrors, isValid, hasChanges, updateField, updateScaleConfig };
 }
 
+function isRoutableType(type: QuestionType): boolean {
+  return type === 'single_choice' || type === 'multiple_choice'
+    || type === 'semantic_scale' || type === 'numeric_scale' || type === 'graphic_scale';
+}
+
 function toFormState(q: Question | null): FormState {
   if (!q) {
     return { text: '', type: 'open', required: false, blockId: 'A' };
@@ -81,6 +91,7 @@ function toFormState(q: Question | null): FormState {
     scaleConfig: q.scaleConfig ? { ...q.scaleConfig } : undefined,
     options: q.options ? [...q.options] : undefined,
     nonSubstantiveOption: q.nonSubstantiveOption,
+    optionRouting: isRoutableType(q.type) ? (q.optionRouting ? { ...q.optionRouting } : {}) : undefined,
   };
 }
 
@@ -139,6 +150,24 @@ function validateForm(state: FormState): FormFieldErrors {
       if (emptyLabels.length > 0) {
         errors.pointLabels = `Opisy punktów ${emptyLabels.map(pl => pl.index).join(', ')} są puste.`;
       }
+    }
+  }
+
+  if (state.optionRouting) {
+    const validIndices = new Set<number>();
+    if (state.options) {
+      state.options.forEach((_, i) => validIndices.add(i));
+    }
+    if (state.scaleConfig) {
+      const count = state.type === 'numeric_scale'
+        ? state.scaleConfig.points + 1
+        : state.scaleConfig.points;
+      for (let i = 0; i < count; i++) validIndices.add(i);
+    }
+    const invalidKeys = Object.keys(state.optionRouting)
+      .filter(k => !validIndices.has(Number(k)));
+    if (invalidKeys.length > 0) {
+      errors.optionRouting = `Nieprawidłowe indeksy reguł przejścia.`;
     }
   }
 

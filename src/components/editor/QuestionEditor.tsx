@@ -41,8 +41,9 @@ export function QuestionEditor({
     );
   }
 
-  const nextOptions = allQuestions
-    .filter(q => q.id !== question.id)
+  const currentIdx = allQuestions.findIndex(q => q.id === question.id);
+  const targetOptions = allQuestions
+    .filter((_, i) => i > currentIdx)
     .map(q => ({ id: q.id, label: q.text.slice(0, 60) }));
 
   return (
@@ -71,12 +72,18 @@ export function QuestionEditor({
             scaleConfig={draft.scaleConfig}
             fieldErrors={fieldErrors}
             onUpdate={onUpdateScaleConfig}
+            optionRouting={draft.optionRouting ?? {}}
+            targetOptions={targetOptions}
+            onRoutingChange={v => onUpdateField('optionRouting', v)}
           />
 
           {(draft.type === 'single_choice' || draft.type === 'multiple_choice') && (
             <OptionsEditor
               options={draft.options ?? []}
+              optionRouting={draft.optionRouting ?? {}}
+              targetOptions={targetOptions}
               onChange={v => onUpdateField('options', v)}
+              onRoutingChange={v => onUpdateField('optionRouting', v)}
               error={fieldErrors.options}
             />
           )}
@@ -93,7 +100,7 @@ export function QuestionEditor({
 
           <NextQuestionSelector
             value={draft.next}
-            options={nextOptions}
+            options={targetOptions}
             onChange={v => onUpdateField('next', v)}
           />
         </div>
