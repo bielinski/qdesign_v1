@@ -22,6 +22,7 @@ export interface ScaleConfig {
   rightLabel: string;
   points: number;
   pointLabels?: PointLabel[];
+  minValue?: number;
 }
 
 export interface BlockMeta {

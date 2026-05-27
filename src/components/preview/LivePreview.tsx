@@ -133,16 +133,20 @@ export function LivePreview({ questions, blocks, title }: LivePreviewProps) {
                         leftLabel={q.scaleConfig.leftLabel}
                         rightLabel={q.scaleConfig.rightLabel}
                         points={q.scaleConfig.points}
+                        minValue={q.scaleConfig.minValue ?? 0}
                       />
-                      {routing && Object.keys(routing).length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-blue-400">
-                          {Array.from({ length: q.scaleConfig.points + 1 }, (_, i) => (
-                            routing[i] && (
-                              <span key={i}>{i} → {routing[i]}</span>
-                            )
-                          ))}
-                        </div>
-                      )}
+                      {(() => {
+                        const sc = q.scaleConfig;
+                        return routing && Object.keys(routing).length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-blue-400">
+                            {Array.from({ length: sc.points }, (_, i) => (
+                              routing[i] && (
+                                <span key={i}>{i + (sc.minValue ?? 0)} → {routing[i]}</span>
+                              )
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
 

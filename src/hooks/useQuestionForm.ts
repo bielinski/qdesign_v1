@@ -103,6 +103,7 @@ function defaultScaleConfig(type: QuestionType): ScaleConfig {
     rightLabel: '',
     points: isSemantic ? 5 : 7,
     pointLabels: isSemantic ? [] : undefined,
+    minValue: 0,
   };
 }
 
@@ -160,7 +161,7 @@ function validateForm(state: FormState): FormFieldErrors {
     }
     if (state.scaleConfig) {
       const count = state.type === 'numeric_scale'
-        ? state.scaleConfig.points + 1
+        ? state.scaleConfig.points
         : state.scaleConfig.points;
       for (let i = 0; i < count; i++) validIndices.add(i);
     }

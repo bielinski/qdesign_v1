@@ -54,7 +54,7 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate, op
         {routableIndices.map(idx => (
           <div key={idx} className="flex items-center gap-2 text-xs py-0.5">
             <span className="font-mono text-gray-400 w-6 text-right shrink-0">
-              {type === 'numeric_scale' ? idx : idx + 1}.
+              {type === 'numeric_scale' ? idx + (scaleConfig?.minValue ?? 0) : idx + 1}.
             </span>
             <span className="flex-1 truncate text-gray-500">
               {labelForIndex(type, scaleConfig, idx)}
@@ -93,6 +93,7 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate, op
             leftLabel={scaleConfig.leftLabel}
             rightLabel={scaleConfig.rightLabel}
             points={scaleConfig.points}
+            minValue={scaleConfig.minValue ?? 0}
           />
           <ScaleEndpointsInput
             leftLabel={scaleConfig.leftLabel}
@@ -109,7 +110,19 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate, op
             onChange={v => onUpdate({ points: v })}
             error={fieldErrors.scalePoints}
           />
-          {routingSection(Array.from({ length: scaleConfig.points + 1 }, (_, i) => i))}
+          <div>
+            <label htmlFor="numeric-min-value" className="label">Wartość początkowa skali</label>
+            <input
+              id="numeric-min-value"
+              type="number"
+              min={0}
+              max={10}
+              value={scaleConfig.minValue ?? 0}
+              onChange={e => onUpdate({ minValue: Math.max(0, parseInt(e.target.value) || 0) })}
+              className="input w-24"
+            />
+          </div>
+          {routingSection(Array.from({ length: scaleConfig.points }, (_, i) => i))}
         </>
       )}
 
@@ -159,7 +172,7 @@ export function ScaleConfigurator({ type, scaleConfig, fieldErrors, onUpdate, op
 
 function labelForIndex(type: QuestionType, config: ScaleConfig, idx: number): string {
   if (type === 'numeric_scale') {
-    return `Wartość ${idx}`;
+    return `Wartość ${idx + (config.minValue ?? 0)}`;
   }
   if (type === 'semantic_scale') {
     const label = config.pointLabels?.find(pl => pl.index === idx + 1)?.label;

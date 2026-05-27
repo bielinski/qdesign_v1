@@ -26,7 +26,7 @@ function getRoutableIndices(q: Question): number[] {
     return Array.from({ length: q.scaleConfig?.points ?? 0 }, (_, i) => i);
   }
   if (q.type === 'numeric_scale') {
-    return Array.from({ length: (q.scaleConfig?.points ?? 0) + 1 }, (_, i) => i);
+    return Array.from({ length: q.scaleConfig?.points ?? 0 }, (_, i) => i);
   }
   return [];
 }
@@ -41,7 +41,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export function getDisplayValue(source: Question, optionIndex: number): number {
-  if (source.type === 'numeric_scale') return optionIndex;
+  if (source.type === 'numeric_scale') return optionIndex + (source.scaleConfig?.minValue ?? 0);
   return optionIndex + 1;
 }
 
@@ -203,7 +203,8 @@ function choiceOptionsToTable(q: Question): Table {
 function numericScaleToTable(q: Question): Table {
   if (!q.scaleConfig) return new Table({ rows: [] });
 
-  const n = q.scaleConfig.points + 1;
+  const n = q.scaleConfig.points;
+  const minVal = q.scaleConfig.minValue ?? 0;
   const empty = () => cellParagraph('');
 
   const headerCells: TableCell[] = [];
@@ -217,7 +218,7 @@ function numericScaleToTable(q: Question): Table {
     } else {
       headerCells.push(new TableCell({ margins: { top: 0, bottom: 0, left: 40, right: 40 }, children: [empty()] }));
     }
-    valueCells.push(tableCell(String(i), { alignment: AlignmentType.CENTER }));
+    valueCells.push(tableCell(String(minVal + i), { alignment: AlignmentType.CENTER }));
   }
 
   return new Table({
@@ -627,7 +628,8 @@ export class SurveyEngine {
             ? Object.entries(q.optionRouting).filter(([_, v]) => v)
             : [];
           if (routingEntries.length > 0) {
-            const rt = routingEntries.map(([k, v]) => `${k} → ${v}`).join(', ');
+            const minVal = q.scaleConfig.minValue ?? 0;
+            const rt = routingEntries.map(([k, v]) => `${Number(k) + minVal} → ${v}`).join(', ');
             children.push(new Paragraph({
               spacing: { before: 60, after: 0 },
               children: [new TextRun({ text: rt, font: DOCX_FONT, size: 16, color: '4472C4', italics: true })],
