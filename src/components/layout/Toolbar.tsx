@@ -5,6 +5,8 @@ interface ToolbarProps {
   onOpenProject: () => void;
   questionCount: number;
   errorCount: number;
+  title: string;
+  onTitleChange: (title: string) => void;
 }
 
 export function Toolbar({
@@ -14,11 +16,20 @@ export function Toolbar({
   onOpenProject,
   questionCount,
   errorCount,
+  title,
+  onTitleChange,
 }: ToolbarProps) {
   return (
     <header className="h-12 shrink-0 border-b border-gray-200 bg-white flex items-center justify-between px-4">
       <div className="flex items-center gap-3">
-        <h1 className="text-base font-semibold text-gray-800">QDesign</h1>
+        <span className="text-base font-semibold text-gray-800">QDesign</span>
+        <input
+          type="text"
+          value={title}
+          onChange={e => onTitleChange(e.target.value)}
+          placeholder="Tytuł badania..."
+          className="text-sm text-gray-600 border border-gray-200 rounded px-2 py-0.5 w-64 focus:outline-none focus:border-blue-400 bg-gray-50"
+        />
         <span className="text-xs text-gray-400">|</span>
         <span className="text-xs text-gray-500">
           Pytania: <strong>{questionCount}</strong>

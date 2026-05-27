@@ -4,6 +4,7 @@ import type { Question, SerializedProject, BlockMeta } from '../lib/types';
 
 export function useSurveyEngine() {
   const [engine] = useState(() => new SurveyEngine());
+  const [title, setTitle] = useState(() => engine.getTitle());
   const [questions, setQuestions] = useState(() => engine.getQuestions());
   const [errors, setErrors] = useState(() => engine.validate());
   const [blocks, setBlocks] = useState(() => engine.getBlocks());
@@ -11,6 +12,12 @@ export function useSurveyEngine() {
     setQuestions(engine.getQuestions());
     setErrors(engine.validate());
     setBlocks(engine.getBlocks());
+    setTitle(engine.getTitle());
+  }, [engine]);
+
+  const setSurveyTitle = useCallback((v: string) => {
+    engine.setTitle(v);
+    setTitle(v);
   }, [engine]);
 
   const addQuestion = useCallback(
@@ -87,6 +94,8 @@ export function useSurveyEngine() {
   );
 
   return {
+    title,
+    setSurveyTitle,
     questions,
     errors,
     blocks,

@@ -25,6 +25,8 @@ function blockCharIndex(blockId: string): number {
 
 export default function App() {
   const {
+    title,
+    setSurveyTitle,
     questions,
     errors,
     blocks,
@@ -179,6 +181,8 @@ export default function App() {
   return (
     <div className="h-screen flex flex-col">
       <Toolbar
+        title={title}
+        onTitleChange={setSurveyTitle}
         onExportDocx={handleExportDocx}
         onNewProject={handleNewProject}
         onSaveProject={handleSaveProject}

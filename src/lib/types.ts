@@ -44,6 +44,7 @@ export interface Question {
 
 export interface SerializedProject {
   version: number;
+  title?: string;
   questions: Omit<Question, 'id'>[];
   blocks: Record<string, BlockMeta>;
 }
