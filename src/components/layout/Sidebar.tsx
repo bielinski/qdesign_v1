@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import type { Question, BlockMeta } from '../../lib/types';
@@ -55,6 +55,37 @@ export function Sidebar({
   onReorderBlock,
 }: SidebarProps) {
   const [activeDrag, setActiveDrag] = useState<{ id: string; type: string } | null>(null);
+
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    const saved = localStorage.getItem('qdesign2-sidebar-width');
+    return saved ? parseInt(saved, 10) : 288;
+  });
+  const isResizing = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('qdesign2-sidebar-width', String(sidebarWidth));
+  }, [sidebarWidth]);
+
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      setSidebarWidth(Math.max(200, Math.min(600, e.clientX)));
+    };
+    const handleMouseUp = () => {
+      isResizing.current = false;
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -134,7 +165,7 @@ export function Sidebar({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <aside className="w-72 shrink-0 border-r border-gray-200 bg-white flex flex-col h-full">
+      <aside className="shrink-0 border-r border-gray-200 bg-white flex flex-col h-full relative" style={{ width: sidebarWidth }}>
         <div className="px-4 py-3 border-b border-gray-200">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
             Bloki pytań
@@ -162,6 +193,10 @@ export function Sidebar({
             + Dodaj blok
           </button>
         </div>
+        <div
+          className="absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-blue-400/50 active:bg-blue-400 transition-colors z-10"
+          onMouseDown={handleResizeStart}
+        />
       </aside>
 
       <DragOverlay>

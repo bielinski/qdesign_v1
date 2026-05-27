@@ -5,6 +5,7 @@ import { getIncomingRoutesText } from '../../lib/SurveyEngine';
 interface LivePreviewProps {
   questions: Question[];
   blocks: Record<string, BlockMeta>;
+  title: string;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -16,13 +17,14 @@ const TYPE_LABELS: Record<string, string> = {
   graphic_scale: 'Skala graficzna',
 };
 
-export function LivePreview({ questions, blocks }: LivePreviewProps) {
+export function LivePreview({ questions, blocks, title }: LivePreviewProps) {
   const groups = groupByBlock(questions);
 
   if (questions.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-300 text-sm italic">
-        Kwestionariusz jest pusty.
+      <div className="flex-1 flex flex-col items-center justify-center text-gray-300 text-sm italic">
+        {title && <h1 className="text-xl font-bold text-gray-400 not-italic mb-2">{title}</h1>}
+        <span>Kwestionariusz jest pusty.</span>
       </div>
     );
   }
@@ -34,6 +36,12 @@ export function LivePreview({ questions, blocks }: LivePreviewProps) {
           <h2 className="text-lg font-semibold text-gray-800">Podgląd kwestionariusza</h2>
           <p className="text-[10px] text-gray-400">Widok respondenta</p>
         </div>
+
+        {title && (
+          <h1 className="text-xl font-bold text-gray-900 text-center leading-snug">
+            {title}
+          </h1>
+        )}
 
         {groups.map(({ blockId, questions: blockQs }) => {
           const blockMeta = blocks[blockId];

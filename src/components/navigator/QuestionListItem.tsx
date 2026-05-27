@@ -59,7 +59,7 @@ export function QuestionListItem({ question, isSelected, onSelect, onDelete }: Q
         </span>
 
         <div className="flex-1 min-w-0">
-          <p className={`text-xs truncate ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
+          <p className={`text-xs whitespace-normal break-words ${isSelected ? 'text-blue-900' : 'text-gray-700'}`}>
             {question.text || '(brak treści)'}
           </p>
           <span className="text-[10px] text-gray-400">{TYPE_LABELS[question.type]}</span>

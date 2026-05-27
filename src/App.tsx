@@ -223,7 +223,7 @@ export default function App() {
             {showLivePreview && (
               <>
                 <div className="w-px bg-gray-200 shrink-0" />
-                <LivePreview questions={questions} blocks={blocks} />
+                <LivePreview questions={questions} blocks={blocks} title={title} />
               </>
             )}
           </div>
