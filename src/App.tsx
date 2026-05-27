@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSurveyEngine } from './hooks/useSurveyEngine';
 import { useQuestionForm } from './hooks/useQuestionForm';
 import { Sidebar } from './components/layout/Sidebar';
@@ -43,6 +43,17 @@ export default function App() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showLivePreview] = useState(true);
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(
+    () => localStorage.getItem('qdesign-current-path'),
+  );
+
+  useEffect(() => {
+    if (currentFilePath) {
+      localStorage.setItem('qdesign-current-path', currentFilePath);
+    } else {
+      localStorage.removeItem('qdesign-current-path');
+    }
+  }, [currentFilePath]);
 
   const selectedQuestion = useMemo(
     () => questions.find(q => q.id === selectedId) ?? null,
@@ -148,7 +159,18 @@ export default function App() {
   const handleSaveProject = useCallback(async () => {
     try {
       const data = saveProject();
-      await saveProjectFile(data);
+      const path = await saveProjectFile(data, currentFilePath ?? undefined);
+      if (path) setCurrentFilePath(path);
+    } catch (err) {
+      alert('Błąd zapisu: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [saveProject, currentFilePath]);
+
+  const handleSaveAsProject = useCallback(async () => {
+    try {
+      const data = saveProject();
+      const path = await saveProjectFile(data);
+      if (path) setCurrentFilePath(path);
     } catch (err) {
       alert('Błąd zapisu: ' + (err instanceof Error ? err.message : String(err)));
     }
@@ -156,14 +178,15 @@ export default function App() {
 
   const handleOpenProject = useCallback(async () => {
     try {
-      const data = await openProjectFile();
-      if (!data) return;
-      loadProject(data);
-      const maxBlock = data.questions.reduce(
+      const result = await openProjectFile();
+      if (!result) return;
+      loadProject(result.data);
+      const maxBlock = result.data.questions.reduce(
         (max: number, q: { blockId: string }) => Math.max(max, blockCharIndex(q.blockId)),
         0,
       );
       nextBlockId = maxBlock + 1;
+      setCurrentFilePath(result.filePath);
       setSelectedId(null);
     } catch (err) {
       alert('Błąd odczytu: ' + (err instanceof Error ? err.message : String(err)));
@@ -186,6 +209,7 @@ export default function App() {
         onExportDocx={handleExportDocx}
         onNewProject={handleNewProject}
         onSaveProject={handleSaveProject}
+        onSaveAsProject={handleSaveAsProject}
         onOpenProject={handleOpenProject}
         questionCount={questions.length}
         errorCount={errors.length}

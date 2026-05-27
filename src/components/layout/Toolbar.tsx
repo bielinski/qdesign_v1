@@ -2,6 +2,7 @@ interface ToolbarProps {
   onExportDocx: () => void;
   onNewProject: () => void;
   onSaveProject: () => void;
+  onSaveAsProject: () => void;
   onOpenProject: () => void;
   questionCount: number;
   errorCount: number;
@@ -13,6 +14,7 @@ export function Toolbar({
   onExportDocx,
   onNewProject,
   onSaveProject,
+  onSaveAsProject,
   onOpenProject,
   questionCount,
   errorCount,
@@ -47,6 +49,9 @@ export function Toolbar({
         </button>
         <button type="button" onClick={onSaveProject} className="btn-secondary text-xs">
           Zapisz projekt
+        </button>
+        <button type="button" onClick={onSaveAsProject} className="btn-secondary text-xs">
+          Zapisz jako
         </button>
         <button type="button" onClick={onNewProject} className="btn-secondary text-xs">
           Nowy projekt
