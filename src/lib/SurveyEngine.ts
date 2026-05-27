@@ -1,4 +1,7 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import {
+  Document, Packer, Paragraph, TextRun, HeadingLevel,
+  Table, TableRow, TableCell, BorderStyle, AlignmentType,
+} from 'docx';
 import type { Question, QuestionType, ValidationError, SerializedProject, BlockMeta } from './types';
 
 const POINT_RANGES: Record<QuestionType, { min: number; max: number } | null> = {
@@ -48,6 +51,45 @@ export function formatValues(vals: number[]): string {
   const head = vals.slice(0, -1).join(', ');
   return `${head} lub ${vals[vals.length - 1]}`;
 }
+
+const NON_SUBSTANTIVE_CODE = 99;
+const DOCX_FONT = 'Arial';
+const CELL_FONT_SIZE = 20;
+const BORDER_SIZE = 4;
+
+function cellParagraph(text: string, opts?: { bold?: boolean; italics?: boolean; color?: string; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): Paragraph {
+  return new Paragraph({
+    spacing: { before: 0, after: 0, line: 240 },
+    indent: { left: 0, right: 0, firstLine: 0 },
+    alignment: opts?.alignment,
+    children: [
+      new TextRun({
+        text,
+        font: DOCX_FONT,
+        size: CELL_FONT_SIZE,
+        bold: opts?.bold,
+        italics: opts?.italics,
+        color: opts?.color,
+      }),
+    ],
+  });
+}
+
+function tableCell(text: string, opts?: { bold?: boolean; italics?: boolean; color?: string; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): TableCell {
+  return new TableCell({
+    margins: { top: 0, bottom: 0, left: 40, right: 40 },
+    children: [cellParagraph(text, opts)],
+  });
+}
+
+const TABLE_BORDERS = {
+  top: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' },
+  bottom: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' },
+  left: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' },
+  right: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' },
+  insideHorizontal: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' },
+  insideVertical: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' },
+};
 
 export function getIncomingRoutesText(allQuestions: Question[], targetId: string): string | null {
   const bySource = new Map<string, { unconditional: boolean; values: number[] }>();
@@ -99,14 +141,141 @@ function blockIndexToPrefix(index: number): string {
   return prefix;
 }
 
+function choiceOptionsToTable(q: Question): Table {
+  const hasRouting = q.optionRouting && Object.values(q.optionRouting).some(v => v);
+
+  const separatorBorder = { top: { style: BorderStyle.SINGLE, size: BORDER_SIZE, color: '000000' } };
+
+  function optionRow(text: string, code: string, routing: string | undefined, isNonSubstantive: boolean): TableRow {
+    const cells: TableCell[] = [
+      new TableCell({
+        margins: { top: 0, bottom: 0, left: 40, right: 40 },
+        borders: isNonSubstantive ? separatorBorder : undefined,
+        children: [cellParagraph(text, isNonSubstantive ? { italics: true, color: '999999' } : undefined)],
+      }),
+      new TableCell({
+        margins: { top: 0, bottom: 0, left: 40, right: 40 },
+        borders: isNonSubstantive ? separatorBorder : undefined,
+        children: [cellParagraph(code, { alignment: AlignmentType.CENTER, color: isNonSubstantive ? '999999' : undefined })],
+      }),
+    ];
+    if (hasRouting) {
+      cells.push(new TableCell({
+        margins: { top: 0, bottom: 0, left: 40, right: 40 },
+        borders: isNonSubstantive ? separatorBorder : undefined,
+        children: [cellParagraph(routing ?? '', routing ? { italics: true, color: '4472C4' } : undefined)],
+      }));
+    }
+    return new TableRow({ children: cells });
+  }
+
+  const rows: TableRow[] = [];
+
+  if (q.type === 'semantic_scale' && q.scaleConfig?.pointLabels) {
+    const sorted = q.scaleConfig.pointLabels.slice().sort((a, b) => a.index - b.index);
+    for (const pl of sorted) {
+      const idx = pl.index - 1;
+      rows.push(optionRow(
+        pl.label || '(brak opisu)',
+        String(pl.index),
+        q.optionRouting?.[idx],
+        false,
+      ));
+    }
+  } else if (q.options && q.options.length > 0) {
+    for (let i = 0; i < q.options.length; i++) {
+      rows.push(optionRow(
+        q.options[i] || '(pusta)',
+        String(getDisplayValue(q, i)),
+        q.optionRouting?.[i],
+        false,
+      ));
+    }
+  }
+
+  if (q.nonSubstantiveOption) {
+    rows.push(optionRow(q.nonSubstantiveOption, String(NON_SUBSTANTIVE_CODE), undefined, true));
+  }
+
+  return new Table({ rows, borders: TABLE_BORDERS });
+}
+
+function numericScaleToTable(q: Question): Table {
+  if (!q.scaleConfig) return new Table({ rows: [] });
+
+  const n = q.scaleConfig.points + 1;
+  const empty = () => cellParagraph('');
+
+  const headerCells: TableCell[] = [];
+  const valueCells: TableCell[] = [];
+
+  for (let i = 0; i < n; i++) {
+    if (i === 0) {
+      headerCells.push(tableCell(q.scaleConfig.leftLabel));
+    } else if (i === n - 1) {
+      headerCells.push(tableCell(q.scaleConfig.rightLabel));
+    } else {
+      headerCells.push(new TableCell({ margins: { top: 0, bottom: 0, left: 40, right: 40 }, children: [empty()] }));
+    }
+    valueCells.push(tableCell(String(i), { alignment: AlignmentType.CENTER }));
+  }
+
+  return new Table({
+    rows: [
+      new TableRow({ children: headerCells }),
+      new TableRow({ children: valueCells }),
+    ],
+    borders: TABLE_BORDERS,
+  });
+}
+
+function graphicScaleToTable(q: Question): Table {
+  if (!q.scaleConfig) return new Table({ rows: [] });
+
+  const n = q.scaleConfig.points;
+  const empty = () => cellParagraph('');
+
+  const headerCells: TableCell[] = [];
+  const valueCells: TableCell[] = [];
+
+  for (let i = 0; i < n; i++) {
+    if (i === 0) {
+      headerCells.push(tableCell(q.scaleConfig.leftLabel));
+    } else if (i === n - 1) {
+      headerCells.push(tableCell(q.scaleConfig.rightLabel));
+    } else {
+      headerCells.push(new TableCell({ margins: { top: 0, bottom: 0, left: 40, right: 40 }, children: [empty()] }));
+    }
+    valueCells.push(tableCell(String(i + 1), { alignment: AlignmentType.CENTER }));
+  }
+
+  return new Table({
+    rows: [
+      new TableRow({ children: headerCells }),
+      new TableRow({ children: valueCells }),
+    ],
+    borders: TABLE_BORDERS,
+  });
+}
+
 export class SurveyEngine {
   private questions: Question[];
   private _blocks: Record<string, BlockMeta>;
+  private _title: string;
 
-  constructor(questions: Question[] = [], blocks: Record<string, BlockMeta> = {}) {
+  constructor(questions: Question[] = [], blocks: Record<string, BlockMeta> = {}, title = '') {
+    this._title = title;
     this._blocks = { ...blocks };
     this.questions = questions.map(q => ({ ...q }));
     this.renumber();
+  }
+
+  getTitle(): string {
+    return this._title;
+  }
+
+  setTitle(title: string): void {
+    this._title = title;
   }
 
   getQuestions(): Question[] {
@@ -357,24 +526,34 @@ export class SurveyEngine {
   serialize(): SerializedProject {
     return {
       version: 1,
+      title: this._title || undefined,
       questions: this.questions.map(({ id: _id, ...rest }) => rest),
       blocks: { ...this._blocks },
     };
   }
 
   loadFromData(data: SerializedProject): void {
+    this._title = data.title ?? '';
     this.questions = data.questions.map(q => ({ ...q, id: '' }));
     this._blocks = data.blocks ? { ...data.blocks } : {};
     this.renumber();
   }
 
   async exportToDocx(): Promise<Uint8Array> {
-    const children: Paragraph[] = [];
+    const children: (Paragraph | Table)[] = [];
+
+    if (this._title) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.TITLE,
+        spacing: { after: 200 },
+        children: [new TextRun({ text: this._title, font: DOCX_FONT })],
+      }));
+    }
 
     children.push(new Paragraph({
-      text: 'Kwestionariusz',
       heading: HeadingLevel.HEADING_1,
       spacing: { after: 300 },
+      children: [new TextRun({ text: 'Kwestionariusz', font: DOCX_FONT })],
     }));
 
     const groups = new Map<string, Question[]>();
@@ -396,15 +575,15 @@ export class SurveyEngine {
         : `Blok ${blockId}`;
 
       children.push(new Paragraph({
-        text: headingText,
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 400, after: 100 },
+        children: [new TextRun({ text: headingText, font: DOCX_FONT })],
       }));
 
       if (blockMeta?.description) {
         children.push(new Paragraph({
           spacing: { after: 200 },
-          children: [new TextRun({ text: blockMeta.description, italics: true, size: 20 })],
+          children: [new TextRun({ text: blockMeta.description, font: DOCX_FONT, italics: true, size: 20 })],
         }));
       }
 
@@ -413,16 +592,16 @@ export class SurveyEngine {
         if (incoming) {
           children.push(new Paragraph({
             spacing: { before: 200 },
-            children: [new TextRun({ text: incoming, italics: true, size: 16, color: '4472C4' })],
+            children: [new TextRun({ text: incoming, font: DOCX_FONT, italics: true, size: 16, color: '4472C4' })],
           }));
         }
 
         const questionRuns: TextRun[] = [
-          new TextRun({ text: `${q.id}. `, size: 22, color: '666666' }),
-          new TextRun({ text: q.text || '(brak treści)', size: 22 }),
+          new TextRun({ text: `${q.id}. `, font: DOCX_FONT, size: 22, color: '666666' }),
+          new TextRun({ text: q.text || '(brak treści)', font: DOCX_FONT, size: 22 }),
         ];
         if (q.required) {
-          questionRuns.push(new TextRun({ text: ' *', size: 22, color: 'FF0000' }));
+          questionRuns.push(new TextRun({ text: ' *', font: DOCX_FONT, size: 22, color: 'FF0000' }));
         }
         children.push(new Paragraph({
           spacing: { before: 120 },
@@ -432,109 +611,41 @@ export class SurveyEngine {
         const typeLabel = TYPE_LABELS[q.type] || q.type.replace(/_/g, ' ');
         children.push(new Paragraph({
           spacing: { after: 60 },
-          children: [new TextRun({ text: `[${typeLabel}]`, size: 16, color: '999999' })],
+          children: [new TextRun({ text: `[${typeLabel}]`, font: DOCX_FONT, size: 16, color: '999999' })],
         }));
 
-        if (q.options && q.options.length > 0) {
-          const symbol = q.type === 'single_choice' ? '○' : '☐';
-          for (let i = 0; i < q.options.length; i++) {
-            const route = q.optionRouting?.[i] ? `  → ${q.optionRouting[i]}` : '';
-            children.push(new Paragraph({
-              indent: { left: 400 },
-              children: [
-                new TextRun({ text: `${symbol} ${q.options[i] || '(pusta)'}`, size: 20 }),
-                ...(route ? [new TextRun({ text: route, size: 16, color: '4472C4', italics: true })] : []),
-              ],
-            }));
-          }
-        }
-
-        if (q.nonSubstantiveOption) {
-          const nssymbol = q.type === 'multiple_choice' ? '☐' : '○';
-          children.push(new Paragraph({
-            indent: { left: 400 },
-            spacing: { before: 60 },
-            children: [new TextRun({ text: '────────────────────', size: 10, color: 'CCCCCC' })],
-          }));
-          children.push(new Paragraph({
-            indent: { left: 400 },
-            children: [
-              new TextRun({ text: `${nssymbol} `, size: 20, color: '999999' }),
-              new TextRun({ text: q.nonSubstantiveOption, size: 20, italics: true, color: '999999' }),
-            ],
-          }));
-        }
-
-        if (q.type === 'semantic_scale' && q.scaleConfig?.pointLabels) {
-          const sorted = q.scaleConfig.pointLabels.slice().sort((a, b) => a.index - b.index);
-          for (const pl of sorted) {
-            const idx = pl.index - 1;
-            const route = q.optionRouting?.[idx] ? `  → ${q.optionRouting[idx]}` : '';
-            children.push(new Paragraph({
-              indent: { left: 400 },
-              children: [
-                new TextRun({ text: `○ ${pl.label || '(brak opisu)'}`, size: 20 }),
-                ...(route ? [new TextRun({ text: route, size: 16, color: '4472C4', italics: true })] : []),
-              ],
-            }));
-          }
+        if ((q.type === 'single_choice' || q.type === 'multiple_choice')
+          && q.options && q.options.length > 0) {
+          children.push(choiceOptionsToTable(q));
+        } else if (q.type === 'semantic_scale' && q.scaleConfig?.pointLabels) {
+          children.push(choiceOptionsToTable(q));
         }
 
         if (q.type === 'numeric_scale' && q.scaleConfig) {
-          children.push(new Paragraph({
-            indent: { left: 400 },
-            spacing: { before: 120 },
-            children: [
-              new TextRun({ text: q.scaleConfig.leftLabel, size: 18, italics: true, color: '666666' }),
-              new TextRun({ text: '  —  ', size: 18, color: 'CCCCCC' }),
-              new TextRun({ text: q.scaleConfig.rightLabel, size: 18, italics: true, color: '666666' }),
-            ],
-          }));
-          const numbers = Array.from({ length: q.scaleConfig.points + 1 }, (_, i) => String(i)).join('   ');
-          children.push(new Paragraph({
-            indent: { left: 400 },
-            children: [new TextRun({ text: numbers, size: 16, color: '888888' })],
-          }));
-          if (q.optionRouting) {
-            const entries = Object.entries(q.optionRouting).filter(([_, v]) => v);
-            if (entries.length > 0) {
-              const rt = entries.map(([k, v]) => `${k} → ${v}`).join(', ');
-              children.push(new Paragraph({
-                indent: { left: 400 },
-                children: [new TextRun({ text: rt, size: 16, color: '4472C4', italics: true })],
-              }));
-            }
+          children.push(numericScaleToTable(q));
+          const routingEntries = q.optionRouting
+            ? Object.entries(q.optionRouting).filter(([_, v]) => v)
+            : [];
+          if (routingEntries.length > 0) {
+            const rt = routingEntries.map(([k, v]) => `${k} → ${v}`).join(', ');
+            children.push(new Paragraph({
+              spacing: { before: 60, after: 0 },
+              children: [new TextRun({ text: rt, font: DOCX_FONT, size: 16, color: '4472C4', italics: true })],
+            }));
           }
         }
 
         if (q.type === 'graphic_scale' && q.scaleConfig) {
-          children.push(new Paragraph({
-            indent: { left: 400 },
-            spacing: { before: 120 },
-            children: [
-              new TextRun({ text: q.scaleConfig.leftLabel, size: 18, italics: true, color: '666666' }),
-              new TextRun({ text: '  —  ', size: 18, color: 'CCCCCC' }),
-              new TextRun({ text: q.scaleConfig.rightLabel, size: 18, italics: true, color: '666666' }),
-            ],
-          }));
-          const bar = '█' + '░'.repeat(Math.max(0, q.scaleConfig.points - 2)) + '█';
-          children.push(new Paragraph({
-            indent: { left: 400 },
-            children: [
-              new TextRun({ text: '1', size: 16, color: '888888' }),
-              new TextRun({ text: ` ${bar} `, size: 18, color: '888888' }),
-              new TextRun({ text: String(q.scaleConfig.points), size: 16, color: '888888' }),
-            ],
-          }));
-          if (q.optionRouting) {
-            const entries = Object.entries(q.optionRouting).filter(([_, v]) => v);
-            if (entries.length > 0) {
-              const rt = entries.map(([k, v]) => `${Number(k) + 1} → ${v}`).join(', ');
-              children.push(new Paragraph({
-                indent: { left: 400 },
-                children: [new TextRun({ text: rt, size: 16, color: '4472C4', italics: true })],
-              }));
-            }
+          children.push(graphicScaleToTable(q));
+          const routingEntries = q.optionRouting
+            ? Object.entries(q.optionRouting).filter(([_, v]) => v)
+            : [];
+          if (routingEntries.length > 0) {
+            const rt = routingEntries.map(([k, v]) => `${Number(k) + 1} → ${v}`).join(', ');
+            children.push(new Paragraph({
+              spacing: { before: 60, after: 0 },
+              children: [new TextRun({ text: rt, font: DOCX_FONT, size: 16, color: '4472C4', italics: true })],
+            }));
           }
         }
 
@@ -542,7 +653,7 @@ export class SurveyEngine {
           children.push(new Paragraph({
             indent: { left: 400 },
             spacing: { before: 100 },
-            children: [new TextRun({ text: `→ Dalej: ${q.next}`, size: 16, color: '4472C4' })],
+            children: [new TextRun({ text: `→ Dalej: ${q.next}`, font: DOCX_FONT, size: 16, color: '4472C4' })],
           }));
         }
       }
