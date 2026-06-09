@@ -184,12 +184,24 @@ export function LivePreview({ questions, blocks, title }: LivePreviewProps) {
                             <th className="text-left text-gray-400 font-normal py-1 pr-2 whitespace-nowrap"></th>
                             {Array.from({ length: q.scaleConfig.points }, (_, i) => {
                               const isSemantic = q.scaleConfig!.pointLabels && q.scaleConfig!.pointLabels!.length > 0;
-                              const header = isSemantic
-                                ? q.scaleConfig!.pointLabels!.find(pl => pl.index === i + 1)?.label ?? ''
-                                : String(i + (q.scaleConfig!.minValue ?? 0));
+                              if (isSemantic) {
+                                const header = q.scaleConfig!.pointLabels!.find(pl => pl.index === i + 1)?.label ?? '';
+                                return (
+                                  <th key={i} className="text-center text-gray-400 font-normal py-1 px-1.5 whitespace-nowrap">
+                                    {header || '—'}
+                                  </th>
+                                );
+                              }
+                              const val = String(i + (q.scaleConfig!.minValue ?? 0));
+                              const label = i === 0
+                                ? q.scaleConfig!.leftLabel
+                                : i === q.scaleConfig!.points - 1
+                                  ? q.scaleConfig!.rightLabel
+                                  : '';
                               return (
                                 <th key={i} className="text-center text-gray-400 font-normal py-1 px-1.5 whitespace-nowrap">
-                                  {header || '—'}
+                                  {label && <div className="text-[10px] leading-tight">{label}</div>}
+                                  <div className={label ? 'text-[10px] leading-tight mt-0.5' : ''}>{val}</div>
                                 </th>
                               );
                             })}
@@ -206,24 +218,18 @@ export function LivePreview({ questions, blocks, title }: LivePreviewProps) {
                               <td className="text-gray-600 py-1.5 pr-2 whitespace-nowrap max-w-[120px] truncate">
                                 {st || <span className="text-gray-300 italic">(puste)</span>}
                               </td>
-                              {Array.from({ length: q.scaleConfig!.points }, (_, pi) => (
-                                <td key={pi} className="text-center py-1.5 px-1.5">
-                                  <input
-                                    type="radio"
-                                    disabled
-                                    name={`preview-${q.id}-${si}`}
-                                    className="h-3 w-3 text-blue-600"
-                                  />
-                                </td>
-                              ))}
+                              {Array.from({ length: q.scaleConfig!.points }, (_, pi) => {
+                                const isSemantic = q.scaleConfig!.pointLabels && q.scaleConfig!.pointLabels!.length > 0;
+                                const code = isSemantic ? pi + 1 : pi + (q.scaleConfig!.minValue ?? 0);
+                                return (
+                                  <td key={pi} className="text-center text-gray-400 text-xs font-mono py-1.5 px-1.5">
+                                    {code}
+                                  </td>
+                                );
+                              })}
                               {q.nonSubstantiveOption && (
-                                <td className="text-center py-1.5 px-1.5">
-                                  <input
-                                    type="radio"
-                                    disabled
-                                    name={`preview-${q.id}-${si}`}
-                                    className="h-3 w-3 text-blue-600"
-                                  />
+                                <td className="text-center text-gray-400 text-xs font-mono py-1.5 px-1.5">
+                                  {q.scaleConfig!.points < 8 ? 9 : 99}
                                 </td>
                               )}
                             </tr>

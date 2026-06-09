@@ -77,10 +77,12 @@ function cellParagraph(text: string, opts?: { bold?: boolean; italics?: boolean;
   });
 }
 
-function tableCell(text: string, opts?: { bold?: boolean; italics?: boolean; color?: string; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] }): TableCell {
+function tableCell(text: string, opts?: { bold?: boolean; italics?: boolean; color?: string; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType]; verticalAlign?: 'bottom' | 'center' | 'top' }): TableCell {
+  const { verticalAlign, ...paragraphOpts } = opts ?? {};
   return new TableCell({
     margins: { top: 0, bottom: 0, left: 40, right: 40 },
-    children: [cellParagraph(text, opts)],
+    verticalAlign,
+    children: [cellParagraph(text, paragraphOpts as Parameters<typeof cellParagraph>[1])],
   });
 }
 
@@ -268,18 +270,45 @@ function statementScaleToTable(q: Question): Table {
   const isSemantic = q.scaleConfig.pointLabels && q.scaleConfig.pointLabels.length > 0;
   const hasNso = !!q.nonSubstantiveOption;
 
-  const headerCells: TableCell[] = [tableCell('', { bold: true })];
+  function headerAlignment(i: number): (typeof AlignmentType)[keyof typeof AlignmentType] {
+    if (i === 0) return AlignmentType.RIGHT;
+    if (i === n - 1) return AlignmentType.LEFT;
+    return AlignmentType.CENTER;
+  }
+
+  const headerCells: TableCell[] = [tableCell('', { verticalAlign: 'bottom' })];
   for (let i = 0; i < n; i++) {
+    const align = headerAlignment(i);
     if (isSemantic) {
       const label = q.scaleConfig!.pointLabels!.find(pl => pl.index === i + 1)?.label ?? '';
-      headerCells.push(tableCell(label, { bold: true, alignment: AlignmentType.CENTER }));
+      headerCells.push(tableCell(label, { verticalAlign: 'bottom', alignment: align }));
     } else {
       const val = String(i + (q.scaleConfig!.minValue ?? 0));
-      headerCells.push(tableCell(val, { bold: true, alignment: AlignmentType.CENTER }));
+      if (i === 0 && q.scaleConfig!.leftLabel) {
+        headerCells.push(new TableCell({
+          margins: { top: 0, bottom: 0, left: 40, right: 40 },
+          verticalAlign: 'bottom',
+          children: [
+            cellParagraph(q.scaleConfig!.leftLabel, { italics: true, alignment: AlignmentType.RIGHT }),
+            cellParagraph(val, { alignment: AlignmentType.RIGHT }),
+          ],
+        }));
+      } else if (i === n - 1 && q.scaleConfig!.rightLabel) {
+        headerCells.push(new TableCell({
+          margins: { top: 0, bottom: 0, left: 40, right: 40 },
+          verticalAlign: 'bottom',
+          children: [
+            cellParagraph(q.scaleConfig!.rightLabel, { italics: true, alignment: AlignmentType.LEFT }),
+            cellParagraph(val, { alignment: AlignmentType.LEFT }),
+          ],
+        }));
+      } else {
+        headerCells.push(tableCell(val, { verticalAlign: 'bottom', alignment: align }));
+      }
     }
   }
   if (hasNso) {
-    headerCells.push(tableCell(q.nonSubstantiveOption!, { bold: true, alignment: AlignmentType.CENTER, italics: true }));
+    headerCells.push(tableCell(q.nonSubstantiveOption!, { verticalAlign: 'bottom', alignment: AlignmentType.CENTER, italics: true }));
   }
   const rows: TableRow[] = [new TableRow({ children: headerCells })];
 
@@ -288,10 +317,12 @@ function statementScaleToTable(q: Question): Table {
       tableCell(st || '(puste)', { italics: true }),
     ];
     for (let i = 0; i < n; i++) {
-      cells.push(tableCell('○', { alignment: AlignmentType.CENTER, color: '999999' }));
+      const code = String(isSemantic ? i + 1 : i + (q.scaleConfig!.minValue ?? 0));
+      cells.push(tableCell(code, { alignment: AlignmentType.CENTER, color: '999999' }));
     }
     if (hasNso) {
-      cells.push(tableCell('○', { alignment: AlignmentType.CENTER, color: '999999' }));
+      const nsoCode = n < 8 ? '9' : '99';
+      cells.push(tableCell(nsoCode, { alignment: AlignmentType.CENTER, color: '999999' }));
     }
     rows.push(new TableRow({ children: cells }));
   }

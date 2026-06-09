@@ -13,7 +13,7 @@ Desktopowa aplikacja do projektowania kwestionariuszy ankietowych.
 
 ### Model danych
 
-- **Typy pytań**: `open` (otwarte), `single_choice` (jednokrotnego wyboru), `multiple_choice` (wielokrotnego wyboru), `semantic_scale` (skala semantyczna Osgooda), `numeric_scale` (skala numeryczna), `graphic_scale` (skala graficzna)
+- **Typy pytań**: `open` (otwarte), `single_choice` (jednokrotnego wyboru), `multiple_choice` (wielokrotnego wyboru), `semantic_scale` (skala semantyczna Osgooda), `numeric_scale` (skala numeryczna), `graphic_scale` (skala graficzna), `statement_scale` (ocena stwierdzeń)
 - **Skale**: polarity (bipolar/unipolar), leftLabel, rightLabel, points, pointLabels, minValue (wartość początkowa dla skali numerycznej)
 - **Bloki**: grupowanie pytań z opcjonalną nazwą i opisem
 - **Routing domyślny `next`**: bezwarunkowe przejście do wskazanego pytania
@@ -55,6 +55,7 @@ Generuje dokument `.docx` z layoutem tożsami z podglądem na żywo (czcionka Ar
 - Semantic scale: tabela analogiczna do choice (etykieta punktu, kod, routing)
 - Numeric scale: tabela z dwoma wierszami — pierwszy: etykiety krańców, drugi: wartości liczbowe `minValue … minValue+points-1`; routing jako notka pod tabelą
 - Graphic scale: tabela analogiczna do numerycznej (wartości `1 … points`); routing jako notka pod tabelą
+- Statement scale: tabela macierzowa — w pierwszym wierszu etykiety/wartości punktów skali, w kolejnych wierszach stwierdzenia z symbolami `○`; opcjonalna kolumna non-substantive
 
 ## Uruchomienie
 
@@ -67,7 +68,7 @@ npm run build        # build produkcyjny
 
 ## Testy
 
-28 testów dla klasy `SurveyEngine`: numerowanie ID, walidacja punktów/etykiet/referencji/opcji/routingu, move/insertAfter/delete/reorderBlock, eksport DOCX, edge case'y.
+35 testów dla klasy `SurveyEngine`: numerowanie ID, walidacja punktów/etykiet/referencji/opcji/routingu, move/insertAfter/delete/reorderBlock, eksport DOCX, `statement_scale`, edge case'y.
 
 ## Znane ograniczenia
 
