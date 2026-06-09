@@ -52,6 +52,13 @@ export interface SerializedProject {
   blocks: Record<string, BlockMeta>;
 }
 
+export interface FragmentExport {
+  version: number;
+  kind: 'question' | 'block';
+  questions: Omit<Question, 'id'>[];
+  blocks: Record<string, BlockMeta>;
+}
+
 export interface ValidationError {
   questionId: string;
   field: string;

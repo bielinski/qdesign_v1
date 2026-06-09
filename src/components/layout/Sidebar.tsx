@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import type { DragEndEvent, DragStartEvent } from '@dnd-kit/core';
 import type { Question, BlockMeta } from '../../lib/types';
@@ -12,9 +12,13 @@ interface SidebarProps {
   onAddBlock: () => void;
   onAddQuestion: (blockId: string) => void;
   onDeleteQuestion: (id: string) => void;
+  onDeleteBlock: (blockId: string) => void;
   onMoveQuestion: (id: string, targetBlockId: string, targetIndex: number) => void;
   onUpdateBlockMeta: (blockId: string, meta: BlockMeta) => void;
   onReorderBlock: (sourceIndex: number, targetIndex: number) => void;
+  onExportQuestions: (ids: string[]) => void;
+  onExportBlock: (blockId: string) => void;
+  onImport: () => void;
 }
 
 function groupByBlock(questions: Question[]): { blockId: string; questions: Question[] }[] {
@@ -50,11 +54,74 @@ export function Sidebar({
   onAddBlock,
   onAddQuestion,
   onDeleteQuestion,
+  onDeleteBlock,
   onMoveQuestion,
   onUpdateBlockMeta,
   onReorderBlock,
+  onExportQuestions,
+  onExportBlock,
+  onImport,
 }: SidebarProps) {
   const [activeDrag, setActiveDrag] = useState<{ id: string; type: string } | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [checkedQuestionIds, setCheckedQuestionIds] = useState<Set<string>>(new Set());
+
+  const handleToggleQuestion = useCallback((id: string) => {
+    setCheckedQuestionIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleToggleBlock = useCallback((blockId: string) => {
+    const blockQuestions = questions.filter(q => q.blockId === blockId);
+    const allChecked = blockQuestions.every(q => checkedQuestionIds.has(q.id));
+    setCheckedQuestionIds(prev => {
+      const next = new Set(prev);
+      for (const q of blockQuestions) {
+        if (allChecked) next.delete(q.id);
+        else next.add(q.id);
+      }
+      return next;
+    });
+  }, [questions, checkedQuestionIds]);
+
+  const allFromSingleBlock = useMemo<string | null>(() => {
+    if (checkedQuestionIds.size === 0) return null;
+    const ids = [...checkedQuestionIds];
+    const firstBlock = questions.find(q => q.id === ids[0])?.blockId;
+    if (!firstBlock) return null;
+    const sameBlock = ids.every(id => {
+      const q = questions.find(q => q.id === id);
+      return q && q.blockId === firstBlock;
+    });
+    if (!sameBlock) return null;
+    const blockQuestions = questions.filter(q => q.blockId === firstBlock);
+    const allInBlock = blockQuestions.every(q => checkedQuestionIds.has(q.id));
+    return allInBlock ? firstBlock : null;
+  }, [checkedQuestionIds, questions]);
+
+  const handleStartExport = useCallback(() => {
+    setCheckedQuestionIds(new Set());
+    setSelectionMode(true);
+  }, []);
+
+  const handleCancelExport = useCallback(() => {
+    setCheckedQuestionIds(new Set());
+    setSelectionMode(false);
+  }, []);
+
+  const handleDoExportQuestions = useCallback(() => {
+    onExportQuestions([...checkedQuestionIds]);
+    setSelectionMode(false);
+  }, [onExportQuestions, checkedQuestionIds]);
+
+  const handleDoExportBlock = useCallback(() => {
+    if (allFromSingleBlock) onExportBlock(allFromSingleBlock);
+    setSelectionMode(false);
+  }, [onExportBlock, allFromSingleBlock]);
 
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem('qdesign2-sidebar-width');
@@ -177,14 +244,19 @@ export function Sidebar({
             questions={questions}
             blocks={blocks}
             selectedId={selectedId}
+            checkedQuestions={checkedQuestionIds}
+            showCheckboxes={selectionMode}
             onSelect={onSelect}
             onAddQuestion={onAddQuestion}
             onDeleteQuestion={onDeleteQuestion}
+            onDeleteBlock={onDeleteBlock}
             onUpdateBlockMeta={onUpdateBlockMeta}
+            onToggleQuestion={handleToggleQuestion}
+            onToggleBlock={handleToggleBlock}
           />
         </div>
 
-        <div className="px-3 py-3 border-t border-gray-200">
+        <div className="px-3 py-3 border-t border-gray-200 space-y-1.5">
           <button
             type="button"
             onClick={onAddBlock}
@@ -192,6 +264,53 @@ export function Sidebar({
           >
             + Dodaj blok
           </button>
+          {selectionMode ? (
+            <>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={handleDoExportQuestions}
+                  disabled={checkedQuestionIds.size === 0}
+                  className="btn-secondary text-xs flex-1"
+                >
+                  Eksportuj pytania
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDoExportBlock}
+                  disabled={!allFromSingleBlock}
+                  className="btn-secondary text-xs flex-1"
+                >
+                  Eksportuj blok
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={handleCancelExport}
+                className="btn-secondary w-full text-xs"
+              >
+                Anuluj
+              </button>
+            </>
+          ) : (
+            <div className="flex gap-1">
+              <button
+                type="button"
+                onClick={handleStartExport}
+                disabled={questions.length === 0}
+                className="btn-secondary text-xs flex-1"
+              >
+                Eksportuj
+              </button>
+              <button
+                type="button"
+                onClick={onImport}
+                className="btn-secondary text-xs flex-1"
+              >
+                Importuj
+              </button>
+            </div>
+          )}
         </div>
         <div
           className="absolute right-0 top-0 w-1.5 h-full cursor-col-resize hover:bg-blue-400/50 active:bg-blue-400 transition-colors z-10"

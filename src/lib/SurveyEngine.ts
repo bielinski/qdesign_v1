@@ -2,7 +2,7 @@ import {
   Document, Packer, Paragraph, TextRun, HeadingLevel,
   Table, TableRow, TableCell, BorderStyle, AlignmentType,
 } from 'docx';
-import type { Question, QuestionType, ValidationError, SerializedProject, BlockMeta } from './types';
+import type { Question, QuestionType, ValidationError, SerializedProject, BlockMeta, FragmentExport } from './types';
 
 const POINT_RANGES: Record<QuestionType, { min: number; max: number } | null> = {
   open: null,
@@ -367,6 +367,12 @@ export class SurveyEngine {
     this.renumber();
   }
 
+  deleteBlock(blockId: string): void {
+    this.questions = this.questions.filter(q => q.blockId !== blockId);
+    delete this._blocks[blockId];
+    this.renumber();
+  }
+
   update(id: string, updates: Partial<Omit<Question, 'id'>>): void {
     if ((updates.type === 'single_choice' || updates.type === 'multiple_choice') && !updates.options) {
       updates.options = [];
@@ -492,6 +498,86 @@ export class SurveyEngine {
       this.questions.push(...groups.get(blockId)!);
     }
 
+    this.renumber();
+  }
+
+  private getNextBlockId(): string {
+    const existing = new Set(Object.keys(this._blocks));
+    for (let i = 0; i < 26; i++) {
+      const id = String.fromCharCode(65 + i);
+      if (!existing.has(id)) return id;
+    }
+    return blockIndexToPrefix(existing.size);
+  }
+
+  exportSelection(questionIds: string[]): FragmentExport {
+    const selected = this.questions.filter(q => questionIds.includes(q.id));
+    const blockIds = new Set(selected.map(q => q.blockId));
+    const blocks: Record<string, BlockMeta> = {};
+    for (const bid of blockIds) {
+      const meta = this._blocks[bid];
+      if (meta) blocks[bid] = { ...meta };
+    }
+    return {
+      version: 1,
+      kind: 'question',
+      questions: selected.map(({ id: _id, ...rest }) => rest),
+      blocks,
+    };
+  }
+
+  exportBlock(blockId: string): FragmentExport {
+    const blockQuestions = this.questions.filter(q => q.blockId === blockId);
+    const blockMeta = this._blocks[blockId] ?? { name: '' };
+    return {
+      version: 1,
+      kind: 'block',
+      questions: blockQuestions.map(({ id: _id, ...rest }) => rest),
+      blocks: { [blockId]: { ...blockMeta } },
+    };
+  }
+
+  importFragment(data: FragmentExport, afterBlockId?: string): void {
+    if (data.kind === 'block') {
+      const existingBlockIds = Object.keys(this._blocks);
+      const newBlockId = this.getNextBlockId();
+      const sourceMeta = Object.values(data.blocks)[0];
+      this._blocks[newBlockId] = sourceMeta ? { ...sourceMeta } : { name: '' };
+
+      const newQuestions = data.questions.map(q => ({
+        ...q, id: '', blockId: newBlockId,
+      }));
+
+      if (afterBlockId && existingBlockIds.includes(afterBlockId)) {
+        let insertIndex = this.questions.length;
+        for (let i = this.questions.length - 1; i >= 0; i--) {
+          if (this.questions[i].blockId === afterBlockId) {
+            insertIndex = i + 1;
+            break;
+          }
+        }
+        this.questions.splice(insertIndex, 0, ...newQuestions);
+      } else if (existingBlockIds.length > 0) {
+        this.questions.push(...newQuestions);
+      } else {
+        this.questions.push(...newQuestions);
+      }
+    } else {
+      if (this.questions.length === 0) {
+        const newBlockId = this.getNextBlockId();
+        this._blocks[newBlockId] = { name: '' };
+        this.questions.push(...data.questions.map(q => ({
+          ...q, id: '', blockId: newBlockId,
+        })));
+      } else {
+        let targetBlock = afterBlockId && this._blocks[afterBlockId]
+          ? afterBlockId
+          : this.questions[this.questions.length - 1].blockId;
+        this.questions.push(...data.questions.map(q => ({
+          ...q, id: '', blockId: targetBlock,
+        })));
+      }
+    }
     this.renumber();
   }
 

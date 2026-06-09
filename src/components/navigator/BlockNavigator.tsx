@@ -6,20 +6,30 @@ interface BlockNavigatorProps {
   questions: Question[];
   blocks: Record<string, BlockMeta>;
   selectedId: string | null;
+  checkedQuestions: Set<string>;
+  showCheckboxes: boolean;
   onSelect: (id: string) => void;
   onAddQuestion: (blockId: string) => void;
   onDeleteQuestion: (id: string) => void;
+  onDeleteBlock: (blockId: string) => void;
   onUpdateBlockMeta: (blockId: string, meta: BlockMeta) => void;
+  onToggleQuestion: (id: string) => void;
+  onToggleBlock: (blockId: string) => void;
 }
 
 export function BlockNavigator({
   questions,
   blocks,
   selectedId,
+  checkedQuestions,
+  showCheckboxes,
   onSelect,
   onAddQuestion,
   onDeleteQuestion,
+  onDeleteBlock,
   onUpdateBlockMeta,
+  onToggleQuestion,
+  onToggleBlock,
 }: BlockNavigatorProps) {
   const groups = groupByBlock(questions);
 
@@ -43,10 +53,15 @@ export function BlockNavigator({
             blockMeta={blocks[blockId] ?? { name: '' }}
             questions={blockQs}
             selectedId={selectedId}
+            checkedQuestions={checkedQuestions}
+            showCheckbox={showCheckboxes}
             onSelect={onSelect}
             onAddQuestion={onAddQuestion}
             onDeleteQuestion={onDeleteQuestion}
+            onDeleteBlock={onDeleteBlock}
             onUpdateBlockMeta={onUpdateBlockMeta}
+            onToggleQuestion={onToggleQuestion}
+            onToggleBlock={onToggleBlock}
           />
         ))}
       </div>

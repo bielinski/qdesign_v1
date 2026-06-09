@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { SurveyEngine } from '../lib/SurveyEngine';
-import type { Question, SerializedProject, BlockMeta } from '../lib/types';
+import type { Question, SerializedProject, BlockMeta, FragmentExport } from '../lib/types';
 
 export function useSurveyEngine() {
   const [engine] = useState(() => new SurveyEngine());
@@ -53,9 +53,39 @@ export function useSurveyEngine() {
     [engine, sync],
   );
 
+  const deleteBlock = useCallback(
+    (blockId: string): void => {
+      engine.deleteBlock(blockId);
+      sync();
+    },
+    [engine, sync],
+  );
+
   const moveQuestion = useCallback(
     (id: string, targetBlockId: string, targetIndex: number) => {
       engine.move(id, targetBlockId, targetIndex);
+      sync();
+    },
+    [engine, sync],
+  );
+
+  const exportSelection = useCallback(
+    (ids: string[]): FragmentExport => {
+      return engine.exportSelection(ids);
+    },
+    [engine],
+  );
+
+  const exportBlock = useCallback(
+    (blockId: string): FragmentExport => {
+      return engine.exportBlock(blockId);
+    },
+    [engine],
+  );
+
+  const importFragment = useCallback(
+    (data: FragmentExport, afterBlockId?: string) => {
+      engine.importFragment(data, afterBlockId);
       sync();
     },
     [engine, sync],
@@ -103,11 +133,15 @@ export function useSurveyEngine() {
     insertAfter,
     updateQuestion,
     deleteQuestion,
+    deleteBlock,
     moveQuestion,
     exportDocx,
     saveProject,
     loadProject,
     updateBlockMeta,
     reorderBlock,
+    exportSelection,
+    exportBlock,
+    importFragment,
   };
 }

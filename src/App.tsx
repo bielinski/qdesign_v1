@@ -6,7 +6,7 @@ import { MainContent } from './components/layout/MainContent';
 import { Toolbar } from './components/layout/Toolbar';
 import { QuestionEditor } from './components/editor/QuestionEditor';
 import { LivePreview } from './components/preview/LivePreview';
-import { saveProjectFile, openProjectFile } from './lib/projectIO';
+import { saveProjectFile, openProjectFile, saveFragmentFile, openFragmentFile } from './lib/projectIO';
 let nextBlockId = 1;
 
 function generateBlockId(): string {
@@ -33,12 +33,16 @@ export default function App() {
     addQuestion,
     updateQuestion,
     deleteQuestion,
+    deleteBlock,
     moveQuestion,
     exportDocx,
     saveProject,
     loadProject,
     updateBlockMeta,
     reorderBlock,
+    exportSelection,
+    exportBlock,
+    importFragment,
   } = useSurveyEngine();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -97,6 +101,14 @@ export default function App() {
     }
     deleteQuestion(id);
   }, [selectedId, deleteQuestion]);
+
+  const handleDeleteBlock = useCallback((blockId: string) => {
+    if (!window.confirm(`Usunąć blok ${blockId} i wszystkie jego pytania?`)) return;
+    if (selectedQuestion?.blockId === blockId) {
+      setSelectedId(null);
+    }
+    deleteBlock(blockId);
+  }, [deleteBlock, selectedQuestion]);
 
   const handleSave = useCallback(() => {
     if (!selectedId) return;
@@ -193,6 +205,34 @@ export default function App() {
     }
   }, [loadProject]);
 
+  const handleExportQuestions = useCallback(async (ids: string[]) => {
+    try {
+      const data = exportSelection(ids);
+      await saveFragmentFile(data);
+    } catch (err) {
+      alert('Błąd eksportu pytań: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [exportSelection]);
+
+  const handleExportBlock = useCallback(async (blockId: string) => {
+    try {
+      const data = exportBlock(blockId);
+      await saveFragmentFile(data);
+    } catch (err) {
+      alert('Błąd eksportu bloku: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [exportBlock]);
+
+  const handleImport = useCallback(async () => {
+    try {
+      const data = await openFragmentFile();
+      if (!data) return;
+      importFragment(data, selectedQuestion?.blockId);
+    } catch (err) {
+      alert('Błąd importu: ' + (err instanceof Error ? err.message : String(err)));
+    }
+  }, [importFragment, selectedQuestion]);
+
   const handleMoveQuestion = useCallback((id: string, targetBlockId: string, targetIndex: number) => {
     moveQuestion(id, targetBlockId, targetIndex);
   }, [moveQuestion]);
@@ -224,9 +264,13 @@ export default function App() {
           onAddBlock={handleAddBlock}
           onAddQuestion={handleAddQuestion}
           onDeleteQuestion={handleDeleteQuestion}
+          onDeleteBlock={handleDeleteBlock}
           onMoveQuestion={handleMoveQuestion}
           onUpdateBlockMeta={updateBlockMeta}
           onReorderBlock={handleReorderBlock}
+          onExportQuestions={handleExportQuestions}
+          onExportBlock={handleExportBlock}
+          onImport={handleImport}
         />
 
         <MainContent>

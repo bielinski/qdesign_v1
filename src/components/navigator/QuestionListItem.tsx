@@ -5,8 +5,11 @@ import type { Question } from '../../lib/types';
 interface QuestionListItemProps {
   question: Question;
   isSelected: boolean;
+  isChecked: boolean;
+  showCheckbox: boolean;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onToggleCheck: (id: string) => void;
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -19,7 +22,7 @@ const TYPE_LABELS: Record<string, string> = {
   statement_scale: 'Stwierdzenia',
 };
 
-export function QuestionListItem({ question, isSelected, onSelect, onDelete }: QuestionListItemProps) {
+export function QuestionListItem({ question, isSelected, isChecked, showCheckbox, onSelect, onDelete, onToggleCheck }: QuestionListItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: question.id,
     data: { type: 'question', blockId: question.blockId },
@@ -38,14 +41,23 @@ export function QuestionListItem({ question, isSelected, onSelect, onDelete }: Q
       className={`group relative flex items-center gap-1 cursor-default transition-colors
         ${isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
     >
+      {showCheckbox && (
+        <input
+          type="checkbox"
+          checked={isChecked}
+          onChange={() => onToggleCheck(question.id)}
+          onClick={e => e.stopPropagation()}
+          className="ml-1 h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+        />
+      )}
       <button
         type="button"
-        className="shrink-0 px-1 py-2 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors touch-none"
+        className="shrink-0 px-0.5 py-2 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 transition-colors touch-none"
         {...attributes}
         {...listeners}
         title="Przeciągnij, aby zmienić kolejność"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5">
           <path d="M7 2a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM7 8a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM7 14a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
         </svg>
       </button>
