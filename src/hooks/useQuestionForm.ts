@@ -10,6 +10,7 @@ export interface FormState {
   next?: string;
   scaleConfig?: ScaleConfig;
   options?: string[];
+  statements?: string[];
   nonSubstantiveOption?: string;
   optionRouting?: Record<number, string>;
 }
@@ -23,6 +24,7 @@ export interface FormFieldErrors {
   pointLabels?: string;
   next?: string;
   options?: string;
+  statements?: string;
   optionRouting?: string;
 }
 
@@ -40,14 +42,16 @@ export function useQuestionForm(question: Question | null) {
     if (field === 'type') {
       const newType = value as QuestionType;
       const isChoice = newType === 'single_choice' || newType === 'multiple_choice';
-      const isScale = newType === 'semantic_scale' || newType === 'numeric_scale' || newType === 'graphic_scale';
-      const isRoutable = isChoice || isScale;
+      const isScale = newType === 'semantic_scale' || newType === 'numeric_scale' || newType === 'graphic_scale' || newType === 'statement_scale';
+      const isRoutable = isChoice || (isScale && newType !== 'statement_scale');
       setDraft(prev => {
         const next = { ...prev, type: newType };
         if (!isScale) next.scaleConfig = undefined;
         if (isScale && !next.scaleConfig) next.scaleConfig = defaultScaleConfig(newType);
         if (isChoice) next.options = prev.options ?? ['', ''];
         if (!isChoice) next.options = undefined;
+        if (newType === 'statement_scale') next.statements = prev.statements ?? ['', ''];
+        if (newType !== 'statement_scale') next.statements = undefined;
         if (isRoutable) next.optionRouting = prev.optionRouting ?? {};
         if (!isRoutable) next.optionRouting = undefined;
         return next;
@@ -90,6 +94,7 @@ function toFormState(q: Question | null): FormState {
     next: q.next,
     scaleConfig: q.scaleConfig ? { ...q.scaleConfig } : undefined,
     options: q.options ? [...q.options] : undefined,
+    statements: q.statements ? [...q.statements] : undefined,
     nonSubstantiveOption: q.nonSubstantiveOption,
     optionRouting: isRoutableType(q.type) ? (q.optionRouting ? { ...q.optionRouting } : {}) : undefined,
   };
@@ -97,12 +102,13 @@ function toFormState(q: Question | null): FormState {
 
 function defaultScaleConfig(type: QuestionType): ScaleConfig {
   const isSemantic = type === 'semantic_scale';
+  const isStatement = type === 'statement_scale';
   return {
     polarity: ScalePolarity.Bipolar,
     leftLabel: '',
     rightLabel: '',
-    points: isSemantic ? 5 : 7,
-    pointLabels: isSemantic ? [] : undefined,
+    points: isSemantic ? 5 : isStatement ? 5 : 7,
+    pointLabels: (isSemantic || isStatement) ? [] : undefined,
     minValue: 0,
   };
 }
@@ -123,6 +129,19 @@ function validateForm(state: FormState): FormFieldErrors {
     }
   }
 
+  if (state.type === 'statement_scale') {
+    if (!state.statements || state.statements.length < 2) {
+      errors.statements = 'Pytanie musi mieć co najmniej 2 stwierdzenia.';
+    } else {
+      const emptyIdxs = state.statements
+        .map((s, i) => (!s.trim() ? i : -1))
+        .filter(i => i >= 0);
+      if (emptyIdxs.length > 0) {
+        errors.statements = `Stwierdzenia ${emptyIdxs.map(i => i + 1).join(', ')} są puste.`;
+      }
+    }
+  }
+
   if (state.scaleConfig) {
     const sc = state.scaleConfig;
 
@@ -135,9 +154,16 @@ function validateForm(state: FormState): FormFieldErrors {
       if (sc.points < 5 || sc.points > 11) {
         errors.scalePoints = `Skala ${state.type === 'numeric_scale' ? 'numeryczna' : 'graficzna'} wymaga 5–11 punktów.`;
       }
+    } else if (state.type === 'statement_scale') {
+      if (sc.points < 3 || sc.points > 11) {
+        errors.scalePoints = 'Skala wymaga 3–11 punktów.';
+      }
     }
 
-    if (state.type !== 'semantic_scale') {
+    const isSemanticMode = state.type === 'semantic_scale'
+      || (state.type === 'statement_scale' && sc.pointLabels && sc.pointLabels.length > 0);
+
+    if (!isSemanticMode) {
       if (!sc.leftLabel.trim()) {
         errors.leftLabel = 'Lewy biegun skali jest wymagany.';
       }
@@ -146,7 +172,7 @@ function validateForm(state: FormState): FormFieldErrors {
       }
     }
 
-    if (state.type === 'semantic_scale' && sc.pointLabels) {
+    if (isSemanticMode && sc.pointLabels) {
       const emptyLabels = sc.pointLabels.filter(pl => !pl.label.trim());
       if (emptyLabels.length > 0) {
         errors.pointLabels = `Opisy punktów ${emptyLabels.map(pl => pl.index).join(', ')} są puste.`;

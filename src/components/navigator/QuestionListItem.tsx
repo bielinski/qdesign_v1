@@ -16,6 +16,7 @@ const TYPE_LABELS: Record<string, string> = {
   semantic_scale: 'Semantyczna',
   numeric_scale: 'Numeryczna',
   graphic_scale: 'Graficzna',
+  statement_scale: 'Stwierdzenia',
 };
 
 export function QuestionListItem({ question, isSelected, onSelect, onDelete }: QuestionListItemProps) {

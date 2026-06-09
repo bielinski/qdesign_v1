@@ -100,12 +100,12 @@ export default function App() {
 
   const handleSave = useCallback(() => {
     if (!selectedId) return;
-    const { text, type, required, blockId, next, scaleConfig, options, nonSubstantiveOption, optionRouting } = form.draft;
+    const { text, type, required, blockId, next, scaleConfig, options, statements, nonSubstantiveOption, optionRouting } = form.draft;
     if (!text.trim()) {
       alert('Treść pytania nie może być pusta.');
       return;
     }
-    updateQuestion(selectedId, { text, type, required, blockId, next, scaleConfig, options, nonSubstantiveOption, optionRouting });
+    updateQuestion(selectedId, { text, type, required, blockId, next, scaleConfig, options, statements, nonSubstantiveOption, optionRouting });
   }, [selectedId, form.draft, updateQuestion]);
 
   const handleCancel = useCallback(() => {

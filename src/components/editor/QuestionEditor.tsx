@@ -7,6 +7,7 @@ import { NextQuestionSelector } from './NextQuestionSelector';
 import { ScaleConfigurator } from '../scale/ScaleConfigurator';
 import { OptionsEditor } from './OptionsEditor';
 import { NonSubstantiveOptionEditor } from './NonSubstantiveOptionEditor';
+import { StatementsEditor } from './StatementsEditor';
 
 interface QuestionEditorProps {
   question: Question | null;
@@ -85,6 +86,14 @@ export function QuestionEditor({
               onChange={v => onUpdateField('options', v)}
               onRoutingChange={v => onUpdateField('optionRouting', v)}
               error={fieldErrors.options}
+            />
+          )}
+
+          {draft.type === 'statement_scale' && (
+            <StatementsEditor
+              statements={draft.statements ?? []}
+              onChange={v => onUpdateField('statements', v)}
+              error={fieldErrors.statements}
             />
           )}
 

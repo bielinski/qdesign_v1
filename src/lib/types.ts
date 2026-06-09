@@ -4,7 +4,8 @@ export type QuestionType =
   | 'multiple_choice'
   | 'semantic_scale'
   | 'numeric_scale'
-  | 'graphic_scale';
+  | 'graphic_scale'
+  | 'statement_scale';
 
 export enum ScalePolarity {
   Bipolar = 'bipolar',
@@ -39,6 +40,7 @@ export interface Question {
   required: boolean;
   next?: string;
   options?: string[];
+  statements?: string[];
   nonSubstantiveOption?: string;
   optionRouting?: Record<number, string>;
 }

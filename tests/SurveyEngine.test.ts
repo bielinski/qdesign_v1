@@ -306,6 +306,96 @@ describe('SurveyEngine', () => {
     });
   });
 
+  describe('statement_scale validation', () => {
+    it('rejects statement_scale with 0 statements', () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          type: 'statement_scale',
+          statements: [],
+          scaleConfig: { polarity: ScalePolarity.Bipolar, leftLabel: 'L', rightLabel: 'R', points: 5 },
+        }),
+      ]);
+      const errors = engine.validate();
+      expect(errors.some(e => e.field === 'statements')).toBe(true);
+    });
+
+    it('rejects statement_scale with 1 statement', () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          type: 'statement_scale',
+          statements: ['Only'],
+          scaleConfig: { polarity: ScalePolarity.Bipolar, leftLabel: 'L', rightLabel: 'R', points: 5 },
+        }),
+      ]);
+      const errors = engine.validate();
+      expect(errors.some(e => e.field === 'statements')).toBe(true);
+    });
+
+    it('accepts statement_scale with 2 statements', () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          type: 'statement_scale',
+          statements: ['A', 'B'],
+          scaleConfig: { polarity: ScalePolarity.Bipolar, leftLabel: 'L', rightLabel: 'R', points: 5 },
+        }),
+      ]);
+      expect(engine.validate().filter(e => e.field === 'statements')).toHaveLength(0);
+    });
+
+    it('rejects statement_scale with empty statement', () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          type: 'statement_scale',
+          statements: ['A', ''],
+          scaleConfig: { polarity: ScalePolarity.Bipolar, leftLabel: 'L', rightLabel: 'R', points: 5 },
+        }),
+      ]);
+      const errors = engine.validate();
+      expect(errors.some(e => e.field === 'statements')).toBe(true);
+    });
+
+    it('validates numeric-style scale config for statement_scale without pointLabels', () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          type: 'statement_scale',
+          statements: ['A', 'B'],
+          scaleConfig: { polarity: ScalePolarity.Unipolar, leftLabel: '', rightLabel: '', points: 5, pointLabels: [], minValue: 0 },
+        }),
+      ]);
+      const errors = engine.validate();
+      expect(errors.some(e => e.field === 'scaleConfig.leftLabel')).toBe(true);
+      expect(errors.some(e => e.field === 'scaleConfig.rightLabel')).toBe(true);
+    });
+
+    it('validates semantic-style scale config for statement_scale with pointLabels', () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          type: 'statement_scale',
+          statements: ['A', 'B'],
+          scaleConfig: { polarity: ScalePolarity.Bipolar, leftLabel: '', rightLabel: '', points: 5, pointLabels: [{ index: 1, label: '' }, { index: 2, label: '' }] },
+        }),
+      ]);
+      const errors = engine.validate();
+      expect(errors.some(e => e.field === 'scaleConfig.pointLabels')).toBe(true);
+    });
+  });
+
+  describe('statement_scale export', () => {
+    it('generates a non-empty Uint8Array', async () => {
+      const engine = new SurveyEngine([
+        makeQuestion({
+          text: 'Rate statements',
+          type: 'statement_scale',
+          statements: ['S1', 'S2'],
+          scaleConfig: { polarity: ScalePolarity.Bipolar, leftLabel: 'L', rightLabel: 'R', points: 5 },
+        }),
+      ]);
+      const buffer = await engine.exportToDocx();
+      expect(buffer).toBeInstanceOf(Uint8Array);
+      expect(buffer.length).toBeGreaterThan(0);
+    });
+  });
+
   describe('edge cases', () => {
     it('handles empty question list', () => {
       const engine = new SurveyEngine([]);

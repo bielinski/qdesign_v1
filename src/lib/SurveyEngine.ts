@@ -11,6 +11,7 @@ const POINT_RANGES: Record<QuestionType, { min: number; max: number } | null> = 
   semantic_scale: { min: 4, max: 7 },
   numeric_scale: { min: 5, max: 11 },
   graphic_scale: { min: 5, max: 11 },
+  statement_scale: { min: 3, max: 11 },
 };
 
 function isRoutableType(type: QuestionType): boolean {
@@ -38,6 +39,7 @@ const TYPE_LABELS: Record<string, string> = {
   semantic_scale: 'Skala semantyczna',
   numeric_scale: 'Skala numeryczna',
   graphic_scale: 'Skala graficzna',
+  statement_scale: 'Ocena stwierdzeń',
 };
 
 export function getDisplayValue(source: Question, optionIndex: number): number {
@@ -259,6 +261,44 @@ function graphicScaleToTable(q: Question): Table {
   });
 }
 
+function statementScaleToTable(q: Question): Table {
+  if (!q.scaleConfig || !q.statements || q.statements.length === 0) return new Table({ rows: [] });
+
+  const n = q.scaleConfig.points;
+  const isSemantic = q.scaleConfig.pointLabels && q.scaleConfig.pointLabels.length > 0;
+  const hasNso = !!q.nonSubstantiveOption;
+
+  const headerCells: TableCell[] = [tableCell('', { bold: true })];
+  for (let i = 0; i < n; i++) {
+    if (isSemantic) {
+      const label = q.scaleConfig!.pointLabels!.find(pl => pl.index === i + 1)?.label ?? '';
+      headerCells.push(tableCell(label, { bold: true, alignment: AlignmentType.CENTER }));
+    } else {
+      const val = String(i + (q.scaleConfig!.minValue ?? 0));
+      headerCells.push(tableCell(val, { bold: true, alignment: AlignmentType.CENTER }));
+    }
+  }
+  if (hasNso) {
+    headerCells.push(tableCell(q.nonSubstantiveOption!, { bold: true, alignment: AlignmentType.CENTER, italics: true }));
+  }
+  const rows: TableRow[] = [new TableRow({ children: headerCells })];
+
+  for (const st of q.statements) {
+    const cells: TableCell[] = [
+      tableCell(st || '(puste)', { italics: true }),
+    ];
+    for (let i = 0; i < n; i++) {
+      cells.push(tableCell('○', { alignment: AlignmentType.CENTER, color: '999999' }));
+    }
+    if (hasNso) {
+      cells.push(tableCell('○', { alignment: AlignmentType.CENTER, color: '999999' }));
+    }
+    rows.push(new TableRow({ children: cells }));
+  }
+
+  return new Table({ rows, borders: TABLE_BORDERS });
+}
+
 export class SurveyEngine {
   private questions: Question[];
   private _blocks: Record<string, BlockMeta>;
@@ -333,6 +373,12 @@ export class SurveyEngine {
     }
     if (updates.type && !['single_choice', 'multiple_choice'].includes(updates.type)) {
       updates.options = undefined;
+    }
+    if (updates.type !== 'statement_scale') {
+      updates.statements = undefined;
+    }
+    if (updates.type === 'statement_scale' && !updates.statements) {
+      updates.statements = [];
     }
     if (updates.type && !isRoutableType(updates.type)) {
       updates.optionRouting = undefined;
@@ -466,20 +512,35 @@ export class SurveyEngine {
           }
         }
 
-        if (!q.scaleConfig.leftLabel?.trim()) {
-          errors.push({
-            questionId: q.id,
-            field: 'scaleConfig.leftLabel',
-            message: `${q.id}: leftLabel is required for scale questions`,
-          });
+        const isStatementSemantic = q.type === 'statement_scale'
+          && q.scaleConfig.pointLabels && q.scaleConfig.pointLabels.length > 0;
+
+        if (!isStatementSemantic) {
+          if (!q.scaleConfig.leftLabel?.trim()) {
+            errors.push({
+              questionId: q.id,
+              field: 'scaleConfig.leftLabel',
+              message: `${q.id}: leftLabel is required for scale questions`,
+            });
+          }
+          if (!q.scaleConfig.rightLabel?.trim()) {
+            errors.push({
+              questionId: q.id,
+              field: 'scaleConfig.rightLabel',
+              message: `${q.id}: rightLabel is required for scale questions`,
+            });
+          }
         }
 
-        if (!q.scaleConfig.rightLabel?.trim()) {
-          errors.push({
-            questionId: q.id,
-            field: 'scaleConfig.rightLabel',
-            message: `${q.id}: rightLabel is required for scale questions`,
-          });
+        if ((q.type === 'semantic_scale' || isStatementSemantic) && q.scaleConfig.pointLabels) {
+          const emptyLabels = q.scaleConfig.pointLabels.filter(pl => !pl.label.trim());
+          if (emptyLabels.length > 0) {
+            errors.push({
+              questionId: q.id,
+              field: 'scaleConfig.pointLabels',
+              message: `${q.id}: point labels ${emptyLabels.map(pl => pl.index).join(', ')} are empty`,
+            });
+          }
         }
       }
 
@@ -489,6 +550,25 @@ export class SurveyEngine {
           field: 'options',
           message: `${q.id}: single_choice/multiple_choice requires at least 2 options, got ${q.options?.length ?? 0}`,
         });
+      }
+
+      if (q.type === 'statement_scale' && (!q.statements || q.statements.length < 2)) {
+        errors.push({
+          questionId: q.id,
+          field: 'statements',
+          message: `${q.id}: statement_scale requires at least 2 statements, got ${q.statements?.length ?? 0}`,
+        });
+      } else if (q.type === 'statement_scale' && q.statements) {
+        const emptyIdxs = q.statements
+          .map((s, i) => (!s.trim() ? i : -1))
+          .filter(i => i >= 0);
+        if (emptyIdxs.length > 0) {
+          errors.push({
+            questionId: q.id,
+            field: 'statements',
+            message: `${q.id}: statements ${emptyIdxs.map(i => i + 1).join(', ')} are empty`,
+          });
+        }
       }
 
       if (q.next && !allIds.has(q.next)) {
@@ -649,6 +729,10 @@ export class SurveyEngine {
               children: [new TextRun({ text: rt, font: DOCX_FONT, size: 16, color: '4472C4', italics: true })],
             }));
           }
+        }
+
+        if (q.type === 'statement_scale' && q.scaleConfig && q.statements && q.statements.length > 0) {
+          children.push(statementScaleToTable(q));
         }
 
         if (q.next) {

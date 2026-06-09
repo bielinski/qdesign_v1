@@ -12,6 +12,7 @@ const TYPES: { value: QuestionType; label: string; desc: string }[] = [
   { value: 'semantic_scale', label: 'Skala semantyczna', desc: 'Różnic semantyczny (Osgood)' },
   { value: 'numeric_scale', label: 'Skala numeryczna', desc: 'Ocena liczbowa' },
   { value: 'graphic_scale', label: 'Skala graficzna', desc: 'Wizualna skala odpowiedzi' },
+  { value: 'statement_scale', label: 'Ocena stwierdzeń', desc: 'Macierzowa ocena stwierdzeń na skali' },
 ];
 
 export function QuestionTypeSelector({ value, onChange }: QuestionTypeSelectorProps) {
